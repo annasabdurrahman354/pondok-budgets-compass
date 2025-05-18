@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -27,15 +26,15 @@ const queryClient = new QueryClient({
       retry: 1,
       refetchOnWindowFocus: false,
       staleTime: 30000,
-      onSettled: (_, error) => {
-        if (error) {
+      meta: {
+        onError: (error) => {
           toast.error(`Error: ${(error as Error).message || "Terjadi kesalahan"}`);
         }
       }
     },
     mutations: {
-      onSettled: (_, error) => {
-        if (error) {
+      meta: {
+        onError: (error) => {
           toast.error(`Error: ${(error as Error).message || "Terjadi kesalahan saat memproses data"}`);
         }
       }

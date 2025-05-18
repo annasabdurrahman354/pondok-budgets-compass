@@ -127,13 +127,14 @@ export const fetchRABDetail = async (rabId: string): Promise<RAB | null> => {
 
 export const createRAB = async (rabData: Partial<RAB>): Promise<RAB | null> => {
   // Ensure status is set since it's required by the database
-  if (!rabData.status) {
-    rabData.status = DocumentStatus.DIAJUKAN;
-  }
+  const dataWithStatus = {
+    ...rabData,
+    status: rabData.status || DocumentStatus.DIAJUKAN,
+  };
 
   const { data, error } = await supabase
     .from('rab')
-    .insert(rabData)
+    .insert(dataWithStatus)
     .select()
     .single();
 
@@ -231,13 +232,14 @@ export const fetchLPJDetail = async (lpjId: string): Promise<LPJ | null> => {
 
 export const createLPJ = async (lpjData: Partial<LPJ>): Promise<LPJ | null> => {
   // Ensure status is set since it's required by the database
-  if (!lpjData.status) {
-    lpjData.status = DocumentStatus.DIAJUKAN;
-  }
+  const dataWithStatus = {
+    ...lpjData,
+    status: lpjData.status || DocumentStatus.DIAJUKAN,
+  };
 
   const { data, error } = await supabase
     .from('lpj')
-    .insert(lpjData)
+    .insert(dataWithStatus)
     .select()
     .single();
 

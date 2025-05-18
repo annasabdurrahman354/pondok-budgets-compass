@@ -1,4 +1,3 @@
-
 // Enums
 export enum UserRole {
   ADMIN_PUSAT = "admin_pusat",
@@ -86,6 +85,15 @@ export interface Pengurus {
 // Time period related types
 export interface Periode {
   id: string; // YYYYMM
+  tahun: number;
+  bulan: number;
+  awal_rab: string;
+  akhir_rab: string;
+  awal_lpj: string;
+  akhir_lpj: string;
+}
+
+export interface PeriodeFormData {
   tahun: number;
   bulan: number;
   awal_rab: string;
