@@ -1,12 +1,10 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AdminPondokLayout } from "@/components/layout/AdminPondokLayout";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -20,13 +18,12 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { getStatusBadgeClass, formatCurrency, formatPeriode } from "@/lib/utils";
-import { DocumentStatus, mockPeriode, Pondok, PondokJenis, RAB } from "@/types";
+import { DocumentStatus, Periode, RAB } from "@/types";
 import { AlertTriangle, FileText, Plus, Trash } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -37,73 +34,55 @@ import {
   AlertTitle,
 } from "@/components/ui/alert";
 import { isWithinDateRange } from "@/lib/utils";
-
-// Mock data for demonstration
-const mockPondok: Pondok = {
-  id: "pd1",
-  nama: "Pondok Pesantren A",
-  nomor_telepon: "081234567890",
-  jenis: PondokJenis.PPM,
-  alamat: "Jl. Pondok A No. 1",
-  kode_pos: "12345",
-  kota_id: "k1",
-  provinsi_id: "p1",
-  daerah_sambung_id: "d1",
-  updated_at: "2025-03-15T00:00:00Z",
-  accepted_at: "2025-03-16T00:00:00Z",
-};
-
-const mockRABs: RAB[] = [
-  {
-    id: "1",
-    pondok_id: "pd1",
-    periode_id: mockPeriode.id,
-    status: DocumentStatus.DIAJUKAN,
-    saldo_awal: 5000000,
-    rencana_pemasukan: 15000000,
-    rencana_pengeluaran: 12000000,
-    dokumen_path: "bukti_rab/rab-202505-pondok-a-abc1.pdf",
-    submitted_at: "2025-04-10T10:30:00Z",
-    accepted_at: null,
-    pesan_revisi: null,
-  },
-  {
-    id: "2",
-    pondok_id: "pd1",
-    periode_id: "202504",
-    status: DocumentStatus.DITERIMA,
-    saldo_awal: 3000000,
-    rencana_pemasukan: 10000000,
-    rencana_pengeluaran: 9000000,
-    dokumen_path: "bukti_rab/rab-202504-pondok-a-def2.pdf",
-    submitted_at: "2025-03-10T10:30:00Z",
-    accepted_at: "2025-03-12T14:20:00Z",
-    pesan_revisi: null,
-  },
-  {
-    id: "3",
-    pondok_id: "pd1",
-    periode_id: "202503",
-    status: DocumentStatus.REVISI,
-    saldo_awal: 2000000,
-    rencana_pemasukan: 8000000,
-    rencana_pengeluaran: 7000000,
-    dokumen_path: "bukti_rab/rab-202503-pondok-a-ghi3.pdf",
-    submitted_at: "2025-02-10T10:30:00Z",
-    accepted_at: null,
-    pesan_revisi: "Mohon perincian rencana pengeluaran",
-  },
-];
+import { useAuth } from "@/contexts/AuthContext";
+import { RABForm } from "@/components/forms/RABForm";
+import { fetchCurrentPeriode, fetchRABsByPondok, getFileUrl } from "@/services/api";
+import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const RABPage: React.FC = () => {
+  const { user } = useAuth();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const isRABOpen = isWithinDateRange(mockPeriode.awal_rab, mockPeriode.akhir_rab);
-  const isPondokVerified = !!mockPondok.accepted_at;
+  const [selectedRAB, setSelectedRAB] = useState<RAB | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  
+  // Fetch current period
+  const { 
+    data: periode,
+    isLoading: isLoadingPeriode,
+  } = useQuery({
+    queryKey: ['periode', 'current'],
+    queryFn: () => fetchCurrentPeriode(),
+  });
+  
+  // Fetch RABs
+  const { 
+    data: rabs = [],
+    isLoading: isLoadingRABs,
+    refetch: refetchRABs,
+  } = useQuery({
+    queryKey: ['rab', 'pondok', user?.pondok_id],
+    queryFn: () => user?.pondok_id ? fetchRABsByPondok(user.pondok_id) : Promise.resolve([]),
+    enabled: !!user?.pondok_id,
+  });
+  
+  const isRABOpen = periode ? isWithinDateRange(periode.awal_rab, periode.akhir_rab) : false;
+  const isPondokVerified = !!user?.pondok_id;
   const canCreateRAB = isPondokVerified && isRABOpen;
   
   // Check if RAB for current period already exists
-  const currentPeriodRAB = mockRABs.find(rab => rab.periode_id === mockPeriode.id);
+  const currentPeriodRAB = periode ? rabs.find(rab => rab.periode_id === periode.id) : null;
   const rabSubmitted = !!currentPeriodRAB;
+  
+  const handleViewRAB = (rab: RAB) => {
+    setSelectedRAB(rab);
+    setIsViewDialogOpen(true);
+  };
+  
+  const getDocumentUrl = (rab: RAB) => {
+    if (!rab.dokumen_path) return "";
+    return getFileUrl('bukti_rab', rab.dokumen_path);
+  };
 
   return (
     <AdminPondokLayout title="Rencana Anggaran Belanja (RAB)">
@@ -142,30 +121,40 @@ const RABPage: React.FC = () => {
               Buat RAB Baru
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>Buat RAB Baru</DialogTitle>
               <DialogDescription>
                 Isi form berikut untuk membuat RAB baru periode{" "}
-                {formatPeriode(mockPeriode.id)}
+                {periode ? formatPeriode(periode.id) : ""}
               </DialogDescription>
             </DialogHeader>
-            <div className="py-4">
-              <p>Form pembuatan RAB akan ditampilkan di sini</p>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                Batal
-              </Button>
-              <Button onClick={() => setIsCreateDialogOpen(false)}>Simpan</Button>
-            </DialogFooter>
+            {periode && (
+              <RABForm 
+                periode={periode} 
+                onSuccess={() => {
+                  setIsCreateDialogOpen(false);
+                  refetchRABs();
+                }}
+                onCancel={() => setIsCreateDialogOpen(false)}
+              />
+            )}
           </DialogContent>
         </Dialog>
       </div>
 
       <Card>
-        <CardContent className="pt-6">
-          {mockRABs.length === 0 ? (
+        <CardHeader>
+          <CardTitle>RAB Pondok</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {isLoadingPeriode || isLoadingRABs ? (
+            <div className="space-y-2">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ) : rabs.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">Belum ada data RAB</p>
             </div>
@@ -184,7 +173,7 @@ const RABPage: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {mockRABs.map((rab) => (
+                  {rabs.map((rab) => (
                     <TableRow key={rab.id || `${rab.pondok_id}-${rab.periode_id}`}>
                       <TableCell className="font-medium">
                         {formatPeriode(rab.periode_id)}
@@ -212,23 +201,11 @@ const RABPage: React.FC = () => {
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0"
-                            onClick={() => console.log("View RAB", rab)}
+                            onClick={() => handleViewRAB(rab)}
                           >
                             <FileText className="h-4 w-4" />
                             <span className="sr-only">Lihat</span>
                           </Button>
-                          
-                          {rab.status !== DocumentStatus.DITERIMA && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
-                              onClick={() => console.log("Delete RAB", rab)}
-                            >
-                              <Trash className="h-4 w-4" />
-                              <span className="sr-only">Hapus</span>
-                            </Button>
-                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -246,12 +223,108 @@ const RABPage: React.FC = () => {
           <AlertTitle>RAB Memerlukan Revisi</AlertTitle>
           <AlertDescription className="space-y-2">
             <p>{currentPeriodRAB.pesan_revisi}</p>
-            <Button size="sm" variant="outline" className="mt-2">
+            <Button size="sm" variant="outline" className="mt-2" 
+              onClick={() => {
+                setIsCreateDialogOpen(true);
+              }}
+            >
               Edit RAB
             </Button>
           </AlertDescription>
         </Alert>
       )}
+      
+      {/* View RAB Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>
+              Detail RAB - {selectedRAB && formatPeriode(selectedRAB.periode_id)}
+            </DialogTitle>
+            <DialogDescription>
+              Status: {selectedRAB && (
+                <Badge className={selectedRAB ? getStatusBadgeClass(selectedRAB.status) : ""}>
+                  {selectedRAB?.status === DocumentStatus.DIAJUKAN
+                    ? "Diajukan"
+                    : selectedRAB?.status === DocumentStatus.DITERIMA
+                    ? "Diterima"
+                    : "Revisi"}
+                </Badge>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedRAB && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Saldo Awal</h3>
+                  <p className="text-lg">{formatCurrency(selectedRAB.saldo_awal)}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Tanggal Pengajuan</h3>
+                  <p className="text-lg">
+                    {selectedRAB.submitted_at
+                      ? new Date(selectedRAB.submitted_at).toLocaleDateString("id-ID")
+                      : "-"}
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Rencana Pemasukan</h3>
+                  <p className="text-lg">{formatCurrency(selectedRAB.rencana_pemasukan)}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Rencana Pengeluaran</h3>
+                  <p className="text-lg">{formatCurrency(selectedRAB.rencana_pengeluaran)}</p>
+                </div>
+                
+                {selectedRAB.accepted_at && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Tanggal Disetujui</h3>
+                    <p className="text-lg">
+                      {new Date(selectedRAB.accepted_at).toLocaleDateString("id-ID")}
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              {selectedRAB.dokumen_path && (
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Dokumen RAB</h3>
+                  <a 
+                    href={getDocumentUrl(selectedRAB)} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-primary hover:underline"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Lihat Dokumen RAB
+                  </a>
+                </div>
+              )}
+              
+              {selectedRAB.pesan_revisi && (
+                <Alert className="mt-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Pesan Revisi</AlertTitle>
+                  <AlertDescription>
+                    {selectedRAB.pesan_revisi}
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsViewDialogOpen(false)}
+                >
+                  Tutup
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AdminPondokLayout>
   );
 };

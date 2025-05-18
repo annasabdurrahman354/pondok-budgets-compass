@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AdminPondokLayout } from "@/components/layout/AdminPondokLayout";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,13 +18,12 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { getStatusBadgeClass, formatCurrency, formatPeriode } from "@/lib/utils";
-import { DocumentStatus, LPJ, mockPeriode, Pondok, PondokJenis } from "@/types";
-import { AlertTriangle, FileText, Plus, Trash } from "lucide-react";
+import { DocumentStatus, LPJ, Periode } from "@/types";
+import { AlertTriangle, FileText, Plus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -35,82 +34,75 @@ import {
   AlertTitle,
 } from "@/components/ui/alert";
 import { isWithinDateRange } from "@/lib/utils";
-
-// Mock data for demonstration
-const mockPondok: Pondok = {
-  id: "pd1",
-  nama: "Pondok Pesantren A",
-  nomor_telepon: "081234567890",
-  jenis: PondokJenis.PPM,
-  alamat: "Jl. Pondok A No. 1",
-  kode_pos: "12345",
-  kota_id: "k1",
-  provinsi_id: "p1",
-  daerah_sambung_id: "d1",
-  updated_at: "2025-03-15T00:00:00Z",
-  accepted_at: "2025-03-16T00:00:00Z",
-};
-
-const mockLPJs: LPJ[] = [
-  {
-    id: "1",
-    pondok_id: "pd1",
-    periode_id: mockPeriode.id,
-    status: DocumentStatus.DIAJUKAN,
-    saldo_awal: 5000000,
-    rencana_pemasukan: 15000000,
-    rencana_pengeluaran: 12000000,
-    realisasi_pemasukan: 14500000,
-    realisasi_pengeluaran: 11800000,
-    sisa_saldo: 7700000,
-    dokumen_path: "bukti_lpj/lpj-202505-pondok-a-abc1.pdf",
-    submitted_at: "2025-05-10T10:30:00Z",
-    accepted_at: null,
-    pesan_revisi: null,
-  },
-  {
-    id: "2",
-    pondok_id: "pd1",
-    periode_id: "202504",
-    status: DocumentStatus.DITERIMA,
-    saldo_awal: 3000000,
-    rencana_pemasukan: 10000000,
-    rencana_pengeluaran: 9000000,
-    realisasi_pemasukan: 9800000,
-    realisasi_pengeluaran: 8500000,
-    sisa_saldo: 4300000,
-    dokumen_path: "bukti_lpj/lpj-202504-pondok-a-def2.pdf",
-    submitted_at: "2025-04-10T10:30:00Z",
-    accepted_at: "2025-04-12T14:20:00Z",
-    pesan_revisi: null,
-  },
-  {
-    id: "3",
-    pondok_id: "pd1",
-    periode_id: "202503",
-    status: DocumentStatus.REVISI,
-    saldo_awal: 2000000,
-    rencana_pemasukan: 8000000,
-    rencana_pengeluaran: 7000000,
-    realisasi_pemasukan: 7800000,
-    realisasi_pengeluaran: 7200000,
-    sisa_saldo: 2600000,
-    dokumen_path: "bukti_lpj/lpj-202503-pondok-a-ghi3.pdf",
-    submitted_at: "2025-03-10T10:30:00Z",
-    accepted_at: null,
-    pesan_revisi: "Mohon lampirkan bukti transaksi pendukung",
-  },
-];
+import { useAuth } from "@/contexts/AuthContext";
+import { LPJForm } from "@/components/forms/LPJForm";
+import { 
+  fetchCurrentPeriode, 
+  fetchLPJsByPondok, 
+  fetchRABsByPondok, 
+  getFileUrl 
+} from "@/services/api";
+import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const LPJPage: React.FC = () => {
+  const { user } = useAuth();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const isLPJOpen = isWithinDateRange(mockPeriode.awal_lpj, mockPeriode.akhir_lpj);
-  const isPondokVerified = !!mockPondok.accepted_at;
+  const [selectedLPJ, setSelectedLPJ] = useState<LPJ | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  
+  // Fetch current period
+  const { 
+    data: periode,
+    isLoading: isLoadingPeriode,
+  } = useQuery({
+    queryKey: ['periode', 'current'],
+    queryFn: () => fetchCurrentPeriode(),
+  });
+  
+  // Fetch LPJs
+  const { 
+    data: lpjs = [],
+    isLoading: isLoadingLPJs,
+    refetch: refetchLPJs,
+  } = useQuery({
+    queryKey: ['lpj', 'pondok', user?.pondok_id],
+    queryFn: () => user?.pondok_id ? fetchLPJsByPondok(user.pondok_id) : Promise.resolve([]),
+    enabled: !!user?.pondok_id,
+  });
+  
+  // Fetch RABs to check if current period RAB exists and is approved
+  const { 
+    data: rabs = [],
+    isLoading: isLoadingRABs,
+  } = useQuery({
+    queryKey: ['rab', 'pondok', user?.pondok_id],
+    queryFn: () => user?.pondok_id ? fetchRABsByPondok(user.pondok_id) : Promise.resolve([]),
+    enabled: !!user?.pondok_id,
+  });
+  
+  const isLPJOpen = periode ? isWithinDateRange(periode.awal_lpj, periode.akhir_lpj) : false;
+  const isPondokVerified = !!user?.pondok_id;
   const canCreateLPJ = isPondokVerified && isLPJOpen;
   
   // Check if LPJ for current period already exists
-  const currentPeriodLPJ = mockLPJs.find(lpj => lpj.periode_id === mockPeriode.id);
+  const currentPeriodLPJ = periode ? lpjs.find(lpj => lpj.periode_id === periode.id) : null;
   const lpjSubmitted = !!currentPeriodLPJ;
+  
+  // Check if RAB for current period is approved
+  const currentPeriodRAB = periode ? rabs.find(rab => 
+    rab.periode_id === periode.id && rab.status === DocumentStatus.DITERIMA
+  ) : null;
+  
+  const handleViewLPJ = (lpj: LPJ) => {
+    setSelectedLPJ(lpj);
+    setIsViewDialogOpen(true);
+  };
+  
+  const getDocumentUrl = (lpj: LPJ) => {
+    if (!lpj.dokumen_path) return "";
+    return getFileUrl('bukti_lpj', lpj.dokumen_path);
+  };
 
   return (
     <AdminPondokLayout title="Laporan Pertanggungjawaban (LPJ)">
@@ -144,35 +136,46 @@ const LPJPage: React.FC = () => {
 
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button disabled={!canCreateLPJ || lpjSubmitted}>
+            <Button disabled={!canCreateLPJ || lpjSubmitted || !currentPeriodRAB}>
               <Plus className="mr-2 h-4 w-4" />
               Buat LPJ Baru
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>Buat LPJ Baru</DialogTitle>
               <DialogDescription>
                 Isi form berikut untuk membuat LPJ baru periode{" "}
-                {formatPeriode(mockPeriode.id)}
+                {periode ? formatPeriode(periode.id) : ""}
               </DialogDescription>
             </DialogHeader>
-            <div className="py-4">
-              <p>Form pembuatan LPJ akan ditampilkan di sini</p>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                Batal
-              </Button>
-              <Button onClick={() => setIsCreateDialogOpen(false)}>Simpan</Button>
-            </DialogFooter>
+            {periode && (
+              <LPJForm 
+                periode={periode}
+                rab={currentPeriodRAB} 
+                onSuccess={() => {
+                  setIsCreateDialogOpen(false);
+                  refetchLPJs();
+                }}
+                onCancel={() => setIsCreateDialogOpen(false)}
+              />
+            )}
           </DialogContent>
         </Dialog>
       </div>
 
       <Card>
-        <CardContent className="pt-6">
-          {mockLPJs.length === 0 ? (
+        <CardHeader>
+          <CardTitle>LPJ Pondok</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {isLoadingPeriode || isLoadingLPJs ? (
+            <div className="space-y-2">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ) : lpjs.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">Belum ada data LPJ</p>
             </div>
@@ -191,7 +194,7 @@ const LPJPage: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {mockLPJs.map((lpj) => (
+                  {lpjs.map((lpj) => (
                     <TableRow key={lpj.id || `${lpj.pondok_id}-${lpj.periode_id}`}>
                       <TableCell className="font-medium">
                         {formatPeriode(lpj.periode_id)}
@@ -221,23 +224,11 @@ const LPJPage: React.FC = () => {
                             variant="ghost"
                             size="sm"
                             className="h-8 w-8 p-0"
-                            onClick={() => console.log("View LPJ", lpj)}
+                            onClick={() => handleViewLPJ(lpj)}
                           >
                             <FileText className="h-4 w-4" />
                             <span className="sr-only">Lihat</span>
                           </Button>
-                          
-                          {lpj.status !== DocumentStatus.DITERIMA && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
-                              onClick={() => console.log("Delete LPJ", lpj)}
-                            >
-                              <Trash className="h-4 w-4" />
-                              <span className="sr-only">Hapus</span>
-                            </Button>
-                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -255,12 +246,119 @@ const LPJPage: React.FC = () => {
           <AlertTitle>LPJ Memerlukan Revisi</AlertTitle>
           <AlertDescription className="space-y-2">
             <p>{currentPeriodLPJ.pesan_revisi}</p>
-            <Button size="sm" variant="outline" className="mt-2">
+            <Button size="sm" variant="outline" className="mt-2" 
+              onClick={() => {
+                setIsCreateDialogOpen(true);
+              }}
+            >
               Edit LPJ
             </Button>
           </AlertDescription>
         </Alert>
       )}
+      
+      {/* View LPJ Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>
+              Detail LPJ - {selectedLPJ && formatPeriode(selectedLPJ.periode_id)}
+            </DialogTitle>
+            <DialogDescription>
+              Status: {selectedLPJ && (
+                <Badge className={selectedLPJ ? getStatusBadgeClass(selectedLPJ.status) : ""}>
+                  {selectedLPJ?.status === DocumentStatus.DIAJUKAN
+                    ? "Diajukan"
+                    : selectedLPJ?.status === DocumentStatus.DITERIMA
+                    ? "Diterima"
+                    : "Revisi"}
+                </Badge>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedLPJ && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Saldo Awal</h3>
+                  <p className="text-lg">{formatCurrency(selectedLPJ.saldo_awal)}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Tanggal Pengajuan</h3>
+                  <p className="text-lg">
+                    {selectedLPJ.submitted_at
+                      ? new Date(selectedLPJ.submitted_at).toLocaleDateString("id-ID")
+                      : "-"}
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Rencana Pemasukan</h3>
+                  <p className="text-lg">{formatCurrency(selectedLPJ.rencana_pemasukan)}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Realisasi Pemasukan</h3>
+                  <p className="text-lg">{formatCurrency(selectedLPJ.realisasi_pemasukan)}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Rencana Pengeluaran</h3>
+                  <p className="text-lg">{formatCurrency(selectedLPJ.rencana_pengeluaran)}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Realisasi Pengeluaran</h3>
+                  <p className="text-lg">{formatCurrency(selectedLPJ.realisasi_pengeluaran)}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Sisa Saldo</h3>
+                  <p className="text-lg font-bold">{formatCurrency(selectedLPJ.sisa_saldo)}</p>
+                </div>
+                {selectedLPJ.accepted_at && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Tanggal Disetujui</h3>
+                    <p className="text-lg">
+                      {new Date(selectedLPJ.accepted_at).toLocaleDateString("id-ID")}
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              {selectedLPJ.dokumen_path && (
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Dokumen LPJ</h3>
+                  <a 
+                    href={getDocumentUrl(selectedLPJ)} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-primary hover:underline"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Lihat Dokumen LPJ
+                  </a>
+                </div>
+              )}
+              
+              {selectedLPJ.pesan_revisi && (
+                <Alert className="mt-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Pesan Revisi</AlertTitle>
+                  <AlertDescription>
+                    {selectedLPJ.pesan_revisi}
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsViewDialogOpen(false)}
+                >
+                  Tutup
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AdminPondokLayout>
   );
 };

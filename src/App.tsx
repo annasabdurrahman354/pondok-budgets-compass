@@ -17,8 +17,25 @@ import AdminPondokDashboard from "./pages/admin-pondok/Dashboard";
 import AdminPondokRAB from "./pages/admin-pondok/RAB";
 import AdminPondokLPJ from "./pages/admin-pondok/LPJ";
 import AdminPondokAkun from "./pages/admin-pondok/Akun";
+import { toast } from "sonner";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 30000,
+      onError: (error: any) => {
+        toast.error(`Error: ${error.message || "Terjadi kesalahan"}`);
+      }
+    },
+    mutations: {
+      onError: (error: any) => {
+        toast.error(`Error: ${error.message || "Terjadi kesalahan saat memproses data"}`);
+      }
+    }
+  }
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

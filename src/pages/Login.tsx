@@ -1,127 +1,135 @@
 
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/sonner";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Navigate } from "react-router-dom";
+
+const formSchema = z.object({
+  email: z.string().email("Format email tidak valid").min(1, "Email wajib diisi"),
+  password: z.string().min(6, "Password minimal 6 karakter").max(100),
+});
+
+type FormData = z.infer<typeof formSchema>;
 
 const Login: React.FC = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
-  const navigate = useNavigate();
+  const { login, isLoggedIn, isLoading, user } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
 
+  const onSubmit = async (data: FormData) => {
+    setIsSubmitting(true);
     try {
-      await login(email, password);
-      toast.success("Login berhasil");
+      await login(data.email, data.password);
     } catch (error) {
       console.error("Login error:", error);
-      toast.error("Email atau password salah");
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">Yayasan Pondok</h1>
-          <p className="text-muted-foreground">
-            Sistem Administrasi Keuangan Pondok
-          </p>
-        </div>
+  // If user is already logged in, redirect to appropriate dashboard
+  if (isLoggedIn && user) {
+    if (user.role === 'admin_pusat') {
+      return <Navigate to="/admin-pusat/dashboard" replace />;
+    } else {
+      return <Navigate to="/admin-pondok/dashboard" replace />;
+    }
+  }
 
-        <Card className="animate-scale-in">
-          <CardHeader>
-            <CardTitle>Login</CardTitle>
-            <CardDescription>
-              Masukkan email dan password untuk mengakses sistem
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
+      <div className="mx-auto w-full max-w-md space-y-6">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold">Sistem Pengelolaan Keuangan Pondok</h1>
+          <p className="text-muted-foreground mt-2">Masuk untuk mengelola data keuangan pondok</p>
+        </div>
+        
+        <Card>
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl text-center">Masuk</CardTitle>
+            <CardDescription className="text-center">
+              Masukkan email dan password Anda untuk melanjutkan
             </CardDescription>
           </CardHeader>
-
-          <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label
-                  htmlFor="email"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Email
-                </label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="nama@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="nama@email.com" 
+                          type="email" 
+                          disabled={isSubmitting} 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-
-              <div className="space-y-2">
-                <label
-                  htmlFor="password"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Password
-                </label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="********"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="******" 
+                          type="password" 
+                          disabled={isSubmitting} 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-            </CardContent>
 
-            <CardFooter>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <span className="animate-spin mr-2">⏳</span>
-                    Memproses...
-                  </>
-                ) : (
-                  "Masuk"
-                )}
-              </Button>
-            </CardFooter>
-          </form>
-
-          <div className="p-6 pt-0">
-            <div className="text-center text-sm text-muted-foreground">
-              <div className="mb-2">Akses Demo:</div>
-              <div className="text-xs space-y-1">
-                <div>
-                  <span className="font-semibold">Admin Pusat:</span>{" "}
-                  adminpusat@example.com / password
-                </div>
-                <div>
-                  <span className="font-semibold">Admin Pondok:</span>{" "}
-                  adminpondok@example.com / password
-                </div>
-              </div>
-            </div>
-          </div>
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={isSubmitting || isLoading}
+                >
+                  {isSubmitting || isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Memproses...
+                    </>
+                  ) : (
+                    "Masuk"
+                  )}
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+          <CardFooter className="flex justify-center border-t p-4">
+            <p className="text-sm text-center text-muted-foreground">
+              Demo Credentials:<br />
+              Admin Pusat: adminpusat@example.com / password<br />
+              Admin Pondok: adminpondok@example.com / password
+            </p>
+          </CardFooter>
         </Card>
       </div>
     </div>
