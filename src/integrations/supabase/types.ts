@@ -66,6 +66,13 @@ export type Database = {
             referencedRelation: "periode"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "lpj_pondok_id_fkey"
+            columns: ["pondok_id"]
+            isOneToOne: false
+            referencedRelation: "pondok"
+            referencedColumns: ["id"]
+          },
         ]
       }
       pengurus: {
@@ -148,7 +155,7 @@ export type Database = {
           accepted_at?: string | null
           alamat?: string | null
           daerah_sambung_id?: string | null
-          id?: string
+          id: string
           jenis?: string | null
           kode_pos?: string | null
           kota_id?: string | null
@@ -218,6 +225,13 @@ export type Database = {
             columns: ["periode_id"]
             isOneToOne: false
             referencedRelation: "periode"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rab_pondok_id_fkey"
+            columns: ["pondok_id"]
+            isOneToOne: false
+            referencedRelation: "pondok"
             referencedColumns: ["id"]
           },
         ]
