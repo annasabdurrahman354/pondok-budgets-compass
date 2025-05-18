@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AdminPusatLayout } from "@/components/layout/AdminPusatLayout";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,82 +26,182 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Periode as PeriodeType } from "@/types";
 import { formatDate, formatPeriode } from "@/lib/utils";
-import { Calendar, Plus } from "lucide-react";
+import { Calendar, Edit, Eye, Plus, Trash } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { fetchAllPeriode } from "@/services/api";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-// Mock data for demonstration
-const mockPeriodes: PeriodeType[] = [
-  {
-    id: "202505",
-    tahun: 2025,
-    bulan: 5,
-    awal_rab: "2025-04-01T00:00:00Z",
-    akhir_rab: "2025-04-15T23:59:59Z",
-    awal_lpj: "2025-05-01T00:00:00Z",
-    akhir_lpj: "2025-05-15T23:59:59Z",
-  },
-  {
-    id: "202504",
-    tahun: 2025,
-    bulan: 4,
-    awal_rab: "2025-03-01T00:00:00Z",
-    akhir_rab: "2025-03-15T23:59:59Z",
-    awal_lpj: "2025-04-01T00:00:00Z",
-    akhir_lpj: "2025-04-15T23:59:59Z",
-  },
-  {
-    id: "202503",
-    tahun: 2025,
-    bulan: 3,
-    awal_rab: "2025-02-01T00:00:00Z",
-    akhir_rab: "2025-02-15T23:59:59Z",
-    awal_lpj: "2025-03-01T00:00:00Z",
-    akhir_lpj: "2025-03-15T23:59:59Z",
-  },
-];
+interface PeriodeFormData {
+  tahun: number;
+  bulan: number;
+  awal_rab: string;
+  akhir_rab: string;
+  awal_lpj: string;
+  akhir_lpj: string;
+}
+
+const defaultPeriodeForm = (): PeriodeFormData => ({
+  tahun: new Date().getFullYear(),
+  bulan: new Date().getMonth() + 1,
+  awal_rab: '',
+  akhir_rab: '',
+  awal_lpj: '',
+  akhir_lpj: ''
+});
 
 const PeriodePage: React.FC = () => {
-  const [periodes, setPeriodes] = useState<PeriodeType[]>(mockPeriodes);
+  const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newPeriode, setNewPeriode] = useState<Partial<PeriodeType>>({
-    tahun: new Date().getFullYear(),
-    bulan: new Date().getMonth() + 1,
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedPeriode, setSelectedPeriode] = useState<PeriodeType | null>(null);
+  const [formData, setFormData] = useState<PeriodeFormData>(defaultPeriodeForm());
+
+  // Fetch periods data
+  const { data: periodes = [], isLoading } = useQuery({
+    queryKey: ['periods'],
+    queryFn: fetchAllPeriode
+  });
+
+  // Create period mutation
+  const createPeriodeMutation = useMutation({
+    mutationFn: async (newPeriode: PeriodeFormData) => {
+      // Generate the period ID (YYYYMM)
+      const periodeId = `${newPeriode.tahun}${String(newPeriode.bulan).padStart(2, '0')}`;
+      
+      const { data, error } = await supabase
+        .from('periode')
+        .insert({
+          id: periodeId,
+          tahun: Number(newPeriode.tahun),
+          bulan: Number(newPeriode.bulan),
+          awal_rab: newPeriode.awal_rab,
+          akhir_rab: newPeriode.akhir_rab,
+          awal_lpj: newPeriode.awal_lpj,
+          akhir_lpj: newPeriode.akhir_lpj
+        })
+        .select();
+      
+      if (error) throw new Error(error.message);
+      return data[0];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['periods'] });
+      setIsDialogOpen(false);
+      setFormData(defaultPeriodeForm());
+      toast.success("Periode berhasil ditambahkan");
+    },
+    onError: (error) => {
+      toast.error(`Error: ${error.message}`);
+    }
+  });
+
+  // Update period mutation
+  const updatePeriodeMutation = useMutation({
+    mutationFn: async (updatedPeriode: PeriodeType) => {
+      const { data, error } = await supabase
+        .from('periode')
+        .update({
+          awal_rab: updatedPeriode.awal_rab,
+          akhir_rab: updatedPeriode.akhir_rab,
+          awal_lpj: updatedPeriode.awal_lpj,
+          akhir_lpj: updatedPeriode.akhir_lpj
+        })
+        .eq('id', updatedPeriode.id)
+        .select();
+      
+      if (error) throw new Error(error.message);
+      return data[0];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['periods'] });
+      setIsEditDialogOpen(false);
+      setSelectedPeriode(null);
+      toast.success("Periode berhasil diperbarui");
+    },
+    onError: (error) => {
+      toast.error(`Error: ${error.message}`);
+    }
+  });
+
+  // Delete period mutation
+  const deletePeriodeMutation = useMutation({
+    mutationFn: async (periodeId: string) => {
+      const { error } = await supabase
+        .from('periode')
+        .delete()
+        .eq('id', periodeId);
+      
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['periods'] });
+      toast.success("Periode berhasil dihapus");
+    },
+    onError: (error) => {
+      toast.error(`Error: ${error.message}`);
+    }
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setNewPeriode((prev) => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Generate the period ID (YYYYMM)
-    const periodeId = `${newPeriode.tahun}${String(newPeriode.bulan).padStart(2, '0')}`;
-    
-    // Create a new period object
-    const periode: PeriodeType = {
-      id: periodeId,
-      tahun: Number(newPeriode.tahun),
-      bulan: Number(newPeriode.bulan),
-      awal_rab: newPeriode.awal_rab as string,
-      akhir_rab: newPeriode.akhir_rab as string,
-      awal_lpj: newPeriode.awal_lpj as string,
-      akhir_lpj: newPeriode.akhir_lpj as string,
-    };
-    
-    // Add the new period to the state
-    setPeriodes((prev) => [periode, ...prev]);
-    
-    // Close the dialog and reset form
-    setIsDialogOpen(false);
-    setNewPeriode({
-      tahun: new Date().getFullYear(),
-      bulan: new Date().getMonth() + 1,
+    createPeriodeMutation.mutate(formData);
+  };
+
+  const handleUpdate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedPeriode) {
+      updatePeriodeMutation.mutate({
+        ...selectedPeriode,
+        awal_rab: formData.awal_rab,
+        akhir_rab: formData.akhir_rab,
+        awal_lpj: formData.awal_lpj,
+        akhir_lpj: formData.akhir_lpj
+      });
+    }
+  };
+
+  const handleDelete = (periodeId: string) => {
+    deletePeriodeMutation.mutate(periodeId);
+  };
+
+  const handleViewDetail = (periode: PeriodeType) => {
+    setSelectedPeriode(periode);
+    setIsDetailDialogOpen(true);
+  };
+
+  const handleEdit = (periode: PeriodeType) => {
+    setSelectedPeriode(periode);
+    setFormData({
+      tahun: periode.tahun,
+      bulan: periode.bulan,
+      awal_rab: periode.awal_rab,
+      akhir_rab: periode.akhir_rab,
+      awal_lpj: periode.awal_lpj,
+      akhir_lpj: periode.akhir_lpj
     });
+    setIsEditDialogOpen(true);
   };
 
   return (
@@ -115,7 +215,7 @@ const PeriodePage: React.FC = () => {
             </Button>
           </DialogTrigger>
           <DialogContent>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleCreate}>
               <DialogHeader>
                 <DialogTitle>Tambah Periode Baru</DialogTitle>
                 <DialogDescription>
@@ -131,7 +231,7 @@ const PeriodePage: React.FC = () => {
                       id="tahun"
                       name="tahun"
                       type="number"
-                      value={newPeriode.tahun || ""}
+                      value={formData.tahun || ""}
                       onChange={handleInputChange}
                       required
                     />
@@ -144,7 +244,7 @@ const PeriodePage: React.FC = () => {
                       type="number"
                       min="1"
                       max="12"
-                      value={newPeriode.bulan || ""}
+                      value={formData.bulan || ""}
                       onChange={handleInputChange}
                       required
                     />
@@ -156,7 +256,7 @@ const PeriodePage: React.FC = () => {
                     id="awal_rab"
                     name="awal_rab"
                     type="datetime-local"
-                    value={newPeriode.awal_rab || ""}
+                    value={formData.awal_rab || ""}
                     onChange={handleInputChange}
                     required
                   />
@@ -167,7 +267,7 @@ const PeriodePage: React.FC = () => {
                     id="akhir_rab"
                     name="akhir_rab"
                     type="datetime-local"
-                    value={newPeriode.akhir_rab || ""}
+                    value={formData.akhir_rab || ""}
                     onChange={handleInputChange}
                     required
                   />
@@ -178,7 +278,7 @@ const PeriodePage: React.FC = () => {
                     id="awal_lpj"
                     name="awal_lpj"
                     type="datetime-local"
-                    value={newPeriode.awal_lpj || ""}
+                    value={formData.awal_lpj || ""}
                     onChange={handleInputChange}
                     required
                   />
@@ -189,19 +289,125 @@ const PeriodePage: React.FC = () => {
                     id="akhir_lpj"
                     name="akhir_lpj"
                     type="datetime-local"
-                    value={newPeriode.akhir_lpj || ""}
+                    value={formData.akhir_lpj || ""}
                     onChange={handleInputChange}
                     required
                   />
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit">Simpan</Button>
+                <Button type="submit" disabled={createPeriodeMutation.isPending}>
+                  {createPeriodeMutation.isPending ? "Menyimpan..." : "Simpan"}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Detail Dialog */}
+      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Detail Periode {selectedPeriode && formatPeriode(selectedPeriode.id)}</DialogTitle>
+          </DialogHeader>
+          {selectedPeriode && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Tahun</p>
+                  <p>{selectedPeriode.tahun}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Bulan</p>
+                  <p>{selectedPeriode.bulan}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">RAB Mulai</p>
+                <p>{formatDate(selectedPeriode.awal_rab)}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">RAB Berakhir</p>
+                <p>{formatDate(selectedPeriode.akhir_rab)}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">LPJ Mulai</p>
+                <p>{formatDate(selectedPeriode.awal_lpj)}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">LPJ Berakhir</p>
+                <p>{formatDate(selectedPeriode.akhir_lpj)}</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <form onSubmit={handleUpdate}>
+            <DialogHeader>
+              <DialogTitle>Edit Periode {selectedPeriode && formatPeriode(selectedPeriode.id)}</DialogTitle>
+              <DialogDescription>
+                Ubah jadwal periode RAB dan LPJ
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="awal_rab">Tanggal Mulai RAB</Label>
+                <Input
+                  id="awal_rab"
+                  name="awal_rab"
+                  type="datetime-local"
+                  value={formData.awal_rab || ""}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="akhir_rab">Tanggal Berakhir RAB</Label>
+                <Input
+                  id="akhir_rab"
+                  name="akhir_rab"
+                  type="datetime-local"
+                  value={formData.akhir_rab || ""}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="awal_lpj">Tanggal Mulai LPJ</Label>
+                <Input
+                  id="awal_lpj"
+                  name="awal_lpj"
+                  type="datetime-local"
+                  value={formData.awal_lpj || ""}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="akhir_lpj">Tanggal Berakhir LPJ</Label>
+                <Input
+                  id="akhir_lpj"
+                  name="akhir_lpj"
+                  type="datetime-local"
+                  value={formData.akhir_lpj || ""}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={updatePeriodeMutation.isPending}>
+                {updatePeriodeMutation.isPending ? "Menyimpan..." : "Simpan"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader>
@@ -211,45 +417,101 @@ const PeriodePage: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Periode</TableHead>
-                  <TableHead>RAB Mulai</TableHead>
-                  <TableHead>RAB Berakhir</TableHead>
-                  <TableHead>LPJ Mulai</TableHead>
-                  <TableHead>LPJ Berakhir</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {periodes.map((periode) => (
-                  <TableRow key={periode.id}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center">
-                        <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
-                        {formatPeriode(periode.id)}
-                      </div>
-                    </TableCell>
-                    <TableCell>{formatDate(periode.awal_rab)}</TableCell>
-                    <TableCell>{formatDate(periode.akhir_rab)}</TableCell>
-                    <TableCell>{formatDate(periode.awal_lpj)}</TableCell>
-                    <TableCell>{formatDate(periode.akhir_lpj)}</TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => console.log("Edit periode", periode)}
-                      >
-                        Detail
-                      </Button>
-                    </TableCell>
+          {isLoading ? (
+            <div className="flex justify-center p-4">
+              <p>Memuat data...</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Periode</TableHead>
+                    <TableHead>RAB Mulai</TableHead>
+                    <TableHead>RAB Berakhir</TableHead>
+                    <TableHead>LPJ Mulai</TableHead>
+                    <TableHead>LPJ Berakhir</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {periodes.map((periode) => (
+                    <TableRow key={periode.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center">
+                          <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
+                          {formatPeriode(periode.id)}
+                        </div>
+                      </TableCell>
+                      <TableCell>{formatDate(periode.awal_rab)}</TableCell>
+                      <TableCell>{formatDate(periode.akhir_rab)}</TableCell>
+                      <TableCell>{formatDate(periode.awal_lpj)}</TableCell>
+                      <TableCell>{formatDate(periode.akhir_lpj)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={() => handleViewDetail(periode)}
+                          >
+                            <Eye className="h-4 w-4" />
+                            <span className="sr-only">View</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={() => handleEdit(periode)}
+                          >
+                            <Edit className="h-4 w-4" />
+                            <span className="sr-only">Edit</span>
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
+                              >
+                                <Trash className="h-4 w-4" />
+                                <span className="sr-only">Delete</span>
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Hapus Periode</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Apakah Anda yakin ingin menghapus periode {formatPeriode(periode.id)}?
+                                  Tindakan ini tidak dapat dibatalkan.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Batal</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => handleDelete(periode.id)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Hapus
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {periodes.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-6">
+                        Tidak ada data periode
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </AdminPusatLayout>

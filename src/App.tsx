@@ -18,6 +18,8 @@ import AdminPondokRAB from "./pages/admin-pondok/RAB";
 import AdminPondokLPJ from "./pages/admin-pondok/LPJ";
 import AdminPondokAkun from "./pages/admin-pondok/Akun";
 import { toast } from "sonner";
+import { useEffect } from "react";
+import { initStorageBuckets } from "./services/initStorage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,17 +27,30 @@ const queryClient = new QueryClient({
       retry: 1,
       refetchOnWindowFocus: false,
       staleTime: 30000,
-      onError: (error: any) => {
-        toast.error(`Error: ${error.message || "Terjadi kesalahan"}`);
+      onSettled: (_, error) => {
+        if (error) {
+          toast.error(`Error: ${(error as Error).message || "Terjadi kesalahan"}`);
+        }
       }
     },
     mutations: {
-      onError: (error: any) => {
-        toast.error(`Error: ${error.message || "Terjadi kesalahan saat memproses data"}`);
+      onSettled: (_, error) => {
+        if (error) {
+          toast.error(`Error: ${(error as Error).message || "Terjadi kesalahan saat memproses data"}`);
+        }
       }
     }
   }
 });
+
+// Initialize storage buckets
+const AppInitializer = () => {
+  useEffect(() => {
+    initStorageBuckets().catch(console.error);
+  }, []);
+  
+  return null;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -44,6 +59,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <AppInitializer />
           <Routes>
             {/* Default route redirects to login */}
             <Route path="/" element={<Navigate to="/login" replace />} />

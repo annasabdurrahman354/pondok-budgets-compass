@@ -1,13 +1,13 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AdminPusatLayout } from "@/components/layout/AdminPusatLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { PeriodInfo } from "@/components/dashboard/PeriodInfo";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RABTable } from "@/components/tables/RABTable";
 import { LPJTable } from "@/components/tables/LPJTable";
-import { formatCurrency, formatPeriode, getCurrentPeriodeId } from "@/lib/utils";
-import { DocumentStatus, LPJ, mockPeriode, PondokJenis, RAB } from "@/types";
+import { formatCurrency, formatPeriode } from "@/lib/utils";
+import { DocumentStatus, LPJ, PondokJenis, RAB } from "@/types";
 import { BookOpen, Calculator, CheckCircle, Clock } from "lucide-react";
 import {
   Select,
@@ -17,153 +17,36 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-
-// Mock data for demonstration
-const currentPeriode = mockPeriode;
-
-const mockRABs: RAB[] = [
-  {
-    pondok_id: "pd1",
-    periode_id: currentPeriode.id,
-    status: DocumentStatus.DIAJUKAN,
-    saldo_awal: 5000000,
-    rencana_pemasukan: 15000000,
-    rencana_pengeluaran: 12000000,
-    dokumen_path: "bukti_rab/rab-202505-pondok-a-abc1.pdf",
-    submitted_at: "2025-04-10T10:30:00Z",
-    accepted_at: null,
-    pesan_revisi: null,
-    pondok: {
-      id: "pd1",
-      nama: "Pondok Pesantren A",
-      nomor_telepon: "081234567890",
-      jenis: PondokJenis.PPM,
-      alamat: "Jl. Pondok A No. 1",
-      kode_pos: "12345",
-      kota_id: "k1",
-      provinsi_id: "p1",
-      daerah_sambung_id: "d1",
-      updated_at: "2025-03-15T00:00:00Z",
-      accepted_at: "2025-03-16T00:00:00Z",
-    },
-  },
-  {
-    pondok_id: "pd2",
-    periode_id: currentPeriode.id,
-    status: DocumentStatus.DITERIMA,
-    saldo_awal: 4000000,
-    rencana_pemasukan: 10000000,
-    rencana_pengeluaran: 9000000,
-    dokumen_path: "bukti_rab/rab-202505-pondok-b-def2.pdf",
-    submitted_at: "2025-04-05T14:20:00Z",
-    accepted_at: "2025-04-07T09:15:00Z",
-    pesan_revisi: null,
-    pondok: {
-      id: "pd2",
-      nama: "Pondok Pesantren B",
-      nomor_telepon: "089876543210",
-      jenis: PondokJenis.PPPM,
-      alamat: "Jl. Pondok B No. 2",
-      kode_pos: "54321",
-      kota_id: "k3",
-      provinsi_id: "p2",
-      daerah_sambung_id: "d2",
-      updated_at: "2025-03-10T00:00:00Z",
-      accepted_at: "2025-03-12T00:00:00Z",
-    },
-  },
-  {
-    pondok_id: "pd3",
-    periode_id: currentPeriode.id,
-    status: DocumentStatus.REVISI,
-    saldo_awal: 3000000,
-    rencana_pemasukan: 8000000,
-    rencana_pengeluaran: 7500000,
-    dokumen_path: "bukti_rab/rab-202505-pondok-c-ghi3.pdf",
-    submitted_at: "2025-04-08T11:45:00Z",
-    accepted_at: null,
-    pesan_revisi: "Mohon jelaskan rencana pengeluaran lebih detail",
-    pondok: {
-      id: "pd3",
-      nama: "Pondok Pesantren C",
-      nomor_telepon: "087654321098",
-      jenis: PondokJenis.BOARDING,
-      alamat: "Jl. Pondok C No. 3",
-      kode_pos: "67890",
-      kota_id: "k5",
-      provinsi_id: "p3",
-      daerah_sambung_id: "d3",
-      updated_at: "2025-03-20T00:00:00Z",
-      accepted_at: "2025-03-22T00:00:00Z",
-    },
-  },
-];
-
-const mockLPJs: LPJ[] = [
-  {
-    pondok_id: "pd1",
-    periode_id: currentPeriode.id,
-    status: DocumentStatus.DIAJUKAN,
-    saldo_awal: 5000000,
-    rencana_pemasukan: 15000000,
-    rencana_pengeluaran: 12000000,
-    realisasi_pemasukan: 14500000,
-    realisasi_pengeluaran: 11800000,
-    sisa_saldo: 7700000,
-    dokumen_path: "bukti_lpj/lpj-202505-pondok-a-abc1.pdf",
-    submitted_at: "2025-05-10T10:30:00Z",
-    accepted_at: null,
-    pesan_revisi: null,
-    pondok: {
-      id: "pd1",
-      nama: "Pondok Pesantren A",
-      nomor_telepon: "081234567890",
-      jenis: PondokJenis.PPM,
-      alamat: "Jl. Pondok A No. 1",
-      kode_pos: "12345",
-      kota_id: "k1",
-      provinsi_id: "p1",
-      daerah_sambung_id: "d1",
-      updated_at: "2025-03-15T00:00:00Z",
-      accepted_at: "2025-03-16T00:00:00Z",
-    },
-  },
-  {
-    pondok_id: "pd2",
-    periode_id: currentPeriode.id,
-    status: DocumentStatus.DITERIMA,
-    saldo_awal: 4000000,
-    rencana_pemasukan: 10000000,
-    rencana_pengeluaran: 9000000,
-    realisasi_pemasukan: 9800000,
-    realisasi_pengeluaran: 8500000,
-    sisa_saldo: 5300000,
-    dokumen_path: "bukti_lpj/lpj-202505-pondok-b-def2.pdf",
-    submitted_at: "2025-05-05T14:20:00Z",
-    accepted_at: "2025-05-07T09:15:00Z",
-    pesan_revisi: null,
-    pondok: {
-      id: "pd2",
-      nama: "Pondok Pesantren B",
-      nomor_telepon: "089876543210",
-      jenis: PondokJenis.PPPM,
-      alamat: "Jl. Pondok B No. 2",
-      kode_pos: "54321",
-      kota_id: "k3",
-      provinsi_id: "p2",
-      daerah_sambung_id: "d2",
-      updated_at: "2025-03-10T00:00:00Z",
-      accepted_at: "2025-03-12T00:00:00Z",
-    },
-  },
-];
+import { useQuery } from "@tanstack/react-query";
+import { fetchCurrentPeriode, fetchRABsByPeriode, fetchLPJsByPeriode, updateRABStatus, updateLPJStatus } from "@/services/api";
+import { toast } from "sonner";
 
 const Dashboard: React.FC = () => {
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [jenisFilter, setJenisFilter] = useState<string>("all");
+
+  // Fetch current period
+  const { data: currentPeriode, isLoading: isLoadingPeriode } = useQuery({
+    queryKey: ['currentPeriode'],
+    queryFn: fetchCurrentPeriode
+  });
+
+  // Fetch RABs for current period
+  const { data: rabs = [], isLoading: isLoadingRABs } = useQuery({
+    queryKey: ['rabs', currentPeriode?.id],
+    queryFn: () => currentPeriode?.id ? fetchRABsByPeriode(currentPeriode.id) : Promise.resolve([]),
+    enabled: !!currentPeriode?.id,
+  });
+
+  // Fetch LPJs for current period
+  const { data: lpjs = [], isLoading: isLoadingLPJs } = useQuery({
+    queryKey: ['lpjs', currentPeriode?.id],
+    queryFn: () => currentPeriode?.id ? fetchLPJsByPeriode(currentPeriode.id) : Promise.resolve([]),
+    enabled: !!currentPeriode?.id,
+  });
   
-  const filteredRABs = mockRABs.filter((rab) => {
+  const filteredRABs = rabs.filter((rab) => {
     return (
       (searchText === "" || 
         rab.pondok?.nama.toLowerCase().includes(searchText.toLowerCase())) &&
@@ -172,7 +55,7 @@ const Dashboard: React.FC = () => {
     );
   });
   
-  const filteredLPJs = mockLPJs.filter((lpj) => {
+  const filteredLPJs = lpjs.filter((lpj) => {
     return (
       (searchText === "" || 
         lpj.pondok?.nama.toLowerCase().includes(searchText.toLowerCase())) &&
@@ -182,10 +65,69 @@ const Dashboard: React.FC = () => {
   });
   
   // Calculate totals
-  const totalRAB = mockRABs.reduce((sum, rab) => sum + rab.rencana_pengeluaran, 0);
-  const totalLPJ = mockLPJs.reduce((sum, lpj) => sum + lpj.realisasi_pengeluaran, 0);
-  const rabPending = mockRABs.filter(r => r.status === DocumentStatus.DIAJUKAN).length;
-  const lpjPending = mockLPJs.filter(l => l.status === DocumentStatus.DIAJUKAN).length;
+  const totalRAB = rabs.reduce((sum, rab) => sum + (rab.rencana_pengeluaran || 0), 0);
+  const totalLPJ = lpjs.reduce((sum, lpj) => sum + (lpj.realisasi_pengeluaran || 0), 0);
+  const rabPending = rabs.filter(r => r.status === DocumentStatus.DIAJUKAN).length;
+  const lpjPending = lpjs.filter(l => l.status === DocumentStatus.DIAJUKAN).length;
+
+  // Handle RAB approval or rejection
+  const handleRABApprove = async (rab: RAB) => {
+    if (!rab.id) return;
+    
+    const result = await updateRABStatus(rab.id, DocumentStatus.DITERIMA);
+    if (result) {
+      toast.success("RAB berhasil disetujui");
+    }
+  };
+
+  const handleRABRevision = async (rab: RAB, pesanRevisi: string) => {
+    if (!rab.id) return;
+    
+    const result = await updateRABStatus(rab.id, DocumentStatus.REVISI, pesanRevisi);
+    if (result) {
+      toast.success("RAB ditolak dan memerlukan revisi");
+    }
+  };
+
+  // Handle LPJ approval or rejection
+  const handleLPJApprove = async (lpj: LPJ) => {
+    if (!lpj.id) return;
+    
+    const result = await updateLPJStatus(lpj.id, DocumentStatus.DITERIMA);
+    if (result) {
+      toast.success("LPJ berhasil disetujui");
+    }
+  };
+
+  const handleLPJRevision = async (lpj: LPJ, pesanRevisi: string) => {
+    if (!lpj.id) return;
+    
+    const result = await updateLPJStatus(lpj.id, DocumentStatus.REVISI, pesanRevisi);
+    if (result) {
+      toast.success("LPJ ditolak dan memerlukan revisi");
+    }
+  };
+
+  if (isLoadingPeriode) {
+    return (
+      <AdminPusatLayout>
+        <div className="flex justify-center items-center h-64">
+          <p>Memuat data periode...</p>
+        </div>
+      </AdminPusatLayout>
+    );
+  }
+
+  if (!currentPeriode) {
+    return (
+      <AdminPusatLayout>
+        <div className="flex flex-col items-center justify-center h-64 space-y-4">
+          <p className="text-lg">Tidak ada periode aktif saat ini</p>
+          <p className="text-muted-foreground">Silakan buat periode baru di halaman Periode</p>
+        </div>
+      </AdminPusatLayout>
+    );
+  }
 
   return (
     <AdminPusatLayout>
@@ -266,22 +208,34 @@ const Dashboard: React.FC = () => {
           <TabsTrigger value="lpj">LPJ</TabsTrigger>
         </TabsList>
         <TabsContent value="rab" className="animate-fade-in">
-          <RABTable 
-            data={filteredRABs} 
-            title={`RAB Periode ${formatPeriode(currentPeriode.id)}`} 
-            onView={(rab) => console.log("View RAB", rab)}
-            onApprove={(rab) => console.log("Approve RAB", rab)}
-            onRevision={(rab) => console.log("Revision RAB", rab)}
-          />
+          {isLoadingRABs ? (
+            <div className="flex justify-center p-6">
+              <p>Memuat data RAB...</p>
+            </div>
+          ) : (
+            <RABTable 
+              data={filteredRABs} 
+              title={`RAB Periode ${formatPeriode(currentPeriode.id)}`} 
+              onView={(rab) => console.log("View RAB", rab)}
+              onApprove={handleRABApprove}
+              onRevision={handleRABRevision}
+            />
+          )}
         </TabsContent>
         <TabsContent value="lpj" className="animate-fade-in">
-          <LPJTable 
-            data={filteredLPJs} 
-            title={`LPJ Periode ${formatPeriode(currentPeriode.id)}`} 
-            onView={(lpj) => console.log("View LPJ", lpj)}
-            onApprove={(lpj) => console.log("Approve LPJ", lpj)}
-            onRevision={(lpj) => console.log("Revision LPJ", lpj)}
-          />
+          {isLoadingLPJs ? (
+            <div className="flex justify-center p-6">
+              <p>Memuat data LPJ...</p>
+            </div>
+          ) : (
+            <LPJTable 
+              data={filteredLPJs} 
+              title={`LPJ Periode ${formatPeriode(currentPeriode.id)}`} 
+              onView={(lpj) => console.log("View LPJ", lpj)}
+              onApprove={handleLPJApprove}
+              onRevision={handleLPJRevision}
+            />
+          )}
         </TabsContent>
       </Tabs>
     </AdminPusatLayout>
