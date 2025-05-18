@@ -75,40 +75,40 @@ const AdminSidebar: React.FC = () => {
           <SidebarGroupLabel>Menu</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem active={location.pathname === "/admin-pusat/dashboard"}>
-                <SidebarMenuButton asChild>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild className={location.pathname === "/admin-pusat/dashboard" ? "bg-secondary/20" : ""}>
                   <Link to="/admin-pusat/dashboard">
                     <Home className="h-4 w-4" />
                     <span>Dashboard</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem active={location.pathname === "/admin-pusat/rab"}>
-                <SidebarMenuButton asChild>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild className={location.pathname === "/admin-pusat/rab" ? "bg-secondary/20" : ""}>
                   <Link to="/admin-pusat/rab">
                     <FileText className="h-4 w-4" />
                     <span>RAB</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem active={location.pathname === "/admin-pusat/lpj"}>
-                <SidebarMenuButton asChild>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild className={location.pathname === "/admin-pusat/lpj" ? "bg-secondary/20" : ""}>
                   <Link to="/admin-pusat/lpj">
                     <BookOpen className="h-4 w-4" />
                     <span>LPJ</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem active={location.pathname === "/admin-pusat/periode"}>
-                <SidebarMenuButton asChild>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild className={location.pathname === "/admin-pusat/periode" ? "bg-secondary/20" : ""}>
                   <Link to="/admin-pusat/periode">
                     <Calendar className="h-4 w-4" />
                     <span>Periode</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem active={location.pathname === "/admin-pusat/pondok"}>
-                <SidebarMenuButton asChild>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild className={location.pathname === "/admin-pusat/pondok" ? "bg-secondary/20" : ""}>
                   <Link to="/admin-pusat/pondok">
                     <Users className="h-4 w-4" />
                     <span>Pondok</span>

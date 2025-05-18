@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { AdminPondokLayout } from "@/components/layout/AdminPondokLayout";
 import { Button } from "@/components/ui/button";
@@ -38,6 +37,7 @@ import {
   PondokJenis,
   Provinsi,
   UserProfile,
+  UserRole,
 } from "@/types";
 import { getPengurusJabatanLabel, getPondokJenisLabel } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
@@ -90,11 +90,6 @@ const mockUser: UserProfile = {
   role: UserRole.ADMIN_PONDOK,
   pondok_id: "pd1",
 };
-
-enum UserRole {
-  ADMIN_PUSAT = "admin_pusat",
-  ADMIN_PONDOK = "admin_pondok",
-}
 
 const AkunPage: React.FC = () => {
   const { user } = useAuth();
