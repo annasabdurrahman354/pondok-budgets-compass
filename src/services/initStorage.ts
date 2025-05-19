@@ -12,7 +12,9 @@ export const initStorageBuckets = async (): Promise<void> => {
       console.log('Creating bukti_rab bucket...');
       try {
         await supabase.storage.createBucket('bukti_rab', {
-          public: true
+          public: true,
+          allowedMimeTypes: ['application/pdf', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+          fileSizeLimit: 10485760 // 10MB
         });
         console.log('bukti_rab bucket created successfully');
       } catch (error) {
@@ -25,7 +27,9 @@ export const initStorageBuckets = async (): Promise<void> => {
       console.log('Creating bukti_lpj bucket...');
       try {
         await supabase.storage.createBucket('bukti_lpj', {
-          public: true
+          public: true,
+          allowedMimeTypes: ['application/pdf', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+          fileSizeLimit: 10485760 // 10MB
         });
         console.log('bukti_lpj bucket created successfully');
       } catch (error) {

@@ -1,139 +1,186 @@
 
-import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { ReactNode, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
+import { useMobile } from "@/hooks/use-mobile";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ChevronRight, Home, LogOut, Menu, ScrollText, Users } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { AuthLayout } from "./AuthLayout";
-import { UserRole } from "@/types";
-import {
-  Home,
-  FileText,
-  BookOpen,
-  Calendar,
-  Users,
-  LogOut
-} from "lucide-react";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-} from "@/components/ui/sidebar";
 
 interface AdminPusatLayoutProps {
-  children: React.ReactNode;
-  title?: string;
+  children: ReactNode;
+  title: string;
 }
 
-export const AdminPusatLayout: React.FC<AdminPusatLayoutProps> = ({
-  children,
-  title = "Dashboard",
-}) => {
-  return (
-    <AuthLayout requiredRole={UserRole.ADMIN_PUSAT}>
-      <SidebarProvider>
-        <div className="min-h-screen flex w-full">
-          <AdminSidebar />
-          <div className="flex-1 min-h-screen">
-            <main className="page-container">
-              <div className="page-header">
-                <h1 className="page-title">{title}</h1>
-              </div>
-              <div className="animate-fade-in">{children}</div>
-            </main>
-          </div>
-        </div>
-      </SidebarProvider>
-    </AuthLayout>
-  );
-};
-
-const AdminSidebar: React.FC = () => {
-  const { logout, user } = useAuth();
+export const AdminPusatLayout = ({ children, title }: AdminPusatLayoutProps) => {
+  const isMobile = useMobile();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { setUser } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  
+  const isActive = (path: string) => {
+    return location.pathname.startsWith(path);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      toast.success("Berhasil logout");
+      navigate("/login");
+    } catch (error) {
+      toast.error("Gagal logout");
+    }
+  };
+
+  const menuItems = [
+    {
+      name: "Dashboard",
+      icon: <Home className="h-5 w-5" />,
+      path: "/admin-pusat/dashboard",
+    },
+    {
+      name: "RAB",
+      icon: <ScrollText className="h-5 w-5" />,
+      path: "/admin-pusat/rab",
+    },
+    {
+      name: "LPJ",
+      icon: <ScrollText className="h-5 w-5" />,
+      path: "/admin-pusat/lpj",
+    },
+    {
+      name: "Periode",
+      icon: <ScrollText className="h-5 w-5" />,
+      path: "/admin-pusat/periode",
+    },
+    {
+      name: "Pondok",
+      icon: <Users className="h-5 w-5" />,
+      path: "/admin-pusat/pondok",
+    },
+  ];
 
   return (
-    <Sidebar>
-      <SidebarHeader className="p-4">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
-            <span className="text-white font-bold text-lg">YP</span>
+    <div className="flex min-h-screen">
+      {isMobile ? (
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetTrigger asChild>
+            <Button
+              variant="ghost"
+              className="fixed left-4 top-4 z-50"
+              size="icon"
+            >
+              <Menu />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0" forceMount>
+            <p className="px-7 py-6 font-bold">Sistem Manajemen Pondok</p>
+            <div className="flex flex-col space-y-1 p-2">
+              {menuItems.map((item) => (
+                <Button
+                  key={item.name}
+                  variant={isActive(item.path) ? "secondary" : "ghost"}
+                  className="justify-start"
+                  onClick={() => {
+                    setOpen(false);
+                    navigate(item.path);
+                  }}
+                >
+                  {item.icon}
+                  <span className="ml-2">{item.name}</span>
+                </Button>
+              ))}
+              
+              <Separator className="my-2" />
+              
+              <Button
+                variant="ghost"
+                className="justify-start text-red-500 hover:text-red-600 hover:bg-red-50"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-5 w-5" />
+                <span className="ml-2">Logout</span>
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <div 
+          className={cn(
+            "flex-col border-r bg-background transition-all duration-300 ease-in-out hidden md:flex",
+            sidebarCollapsed ? "w-[60px]" : "w-[240px]"
+          )}
+        >
+          <div className={cn(
+            "px-7 py-6 font-bold flex justify-between items-center",
+            sidebarCollapsed && "px-4 justify-center"
+          )}>
+            {!sidebarCollapsed && <span>Sistem Manajemen Pondok</span>}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="h-8 w-8"
+            >
+              <ChevronRight className={cn(
+                "h-4 w-4 transition-all",
+                sidebarCollapsed && "rotate-180"
+              )} />
+            </Button>
           </div>
-          <div>
-            <h2 className="font-bold text-lg">Yayasan Pondok</h2>
+          <div className="flex flex-col space-y-1 p-2">
+            {menuItems.map((item) => (
+              <Link key={item.name} to={item.path}>
+                <Button
+                  variant={isActive(item.path) ? "secondary" : "ghost"}
+                  className={cn(
+                    "justify-start w-full",
+                    sidebarCollapsed && "justify-center px-2"
+                  )}
+                  title={sidebarCollapsed ? item.name : undefined}
+                >
+                  {item.icon}
+                  {!sidebarCollapsed && <span className="ml-2">{item.name}</span>}
+                </Button>
+              </Link>
+            ))}
+            
+            <Separator className="my-2" />
+            
+            <Button
+              variant="ghost"
+              className={cn(
+                "text-red-500 hover:text-red-600 hover:bg-red-50",
+                sidebarCollapsed ? "justify-center px-2" : "justify-start"
+              )}
+              onClick={handleLogout}
+              title={sidebarCollapsed ? "Logout" : undefined}
+            >
+              <LogOut className="h-5 w-5" />
+              {!sidebarCollapsed && <span className="ml-2">Logout</span>}
+            </Button>
           </div>
         </div>
-      </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Menu</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild className={location.pathname === "/admin-pusat/dashboard" ? "bg-secondary/20" : ""}>
-                  <Link to="/admin-pusat/dashboard">
-                    <Home className="h-4 w-4" />
-                    <span>Dashboard</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild className={location.pathname === "/admin-pusat/rab" ? "bg-secondary/20" : ""}>
-                  <Link to="/admin-pusat/rab">
-                    <FileText className="h-4 w-4" />
-                    <span>RAB</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild className={location.pathname === "/admin-pusat/lpj" ? "bg-secondary/20" : ""}>
-                  <Link to="/admin-pusat/lpj">
-                    <BookOpen className="h-4 w-4" />
-                    <span>LPJ</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild className={location.pathname === "/admin-pusat/periode" ? "bg-secondary/20" : ""}>
-                  <Link to="/admin-pusat/periode">
-                    <Calendar className="h-4 w-4" />
-                    <span>Periode</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild className={location.pathname === "/admin-pusat/pondok" ? "bg-secondary/20" : ""}>
-                  <Link to="/admin-pusat/pondok">
-                    <Users className="h-4 w-4" />
-                    <span>Pondok</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-      <SidebarFooter>
-        <div className="p-4">
-          <div className="mb-4">
-            <p className="text-sm font-medium">{user?.nama}</p>
-            <p className="text-xs text-muted-foreground">{user?.email}</p>
-          </div>
-          <button
-            onClick={logout}
-            className="flex items-center gap-2 text-sm text-red-500 hover:text-red-700 transition-colors"
-          >
-            <LogOut className="h-4 w-4" />
-            <span>Keluar</span>
-          </button>
-        </div>
-      </SidebarFooter>
-    </Sidebar>
+      )}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <header className="flex h-16 items-center border-b px-4 md:px-6">
+          <h1 className="text-lg font-bold md:text-xl">
+            {isMobile ? (
+              <span className="ml-8">{title}</span>
+            ) : (
+              <span>{title}</span>
+            )}
+          </h1>
+        </header>
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
+      </div>
+    </div>
   );
 };

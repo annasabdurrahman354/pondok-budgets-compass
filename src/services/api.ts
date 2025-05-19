@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { DocumentStatus, LPJ, Periode, Pondok, RAB, PengurusJabatan, PondokJenis, UserProfile } from "@/types";
 
@@ -65,14 +64,7 @@ export const createPondok = async (pondokData: Omit<Pondok, 'id' | 'accepted_at'
   const { data, error } = await supabase
     .from('pondok')
     .insert({
-      nama: pondokData.nama,
-      jenis: pondokData.jenis,
-      nomor_telepon: pondokData.nomor_telepon,
-      alamat: pondokData.alamat,
-      kode_pos: pondokData.kode_pos,
-      provinsi_id: pondokData.provinsi_id,
-      kota_id: pondokData.kota_id,
-      daerah_sambung_id: pondokData.daerah_sambung_id,
+      ...pondokData,
       updated_at: new Date().toISOString()
     })
     .select()
@@ -197,12 +189,14 @@ export const createAdminPondok = async (userData: {
   email: string;
   nomor_telepon?: string;
   pondok_id: string;
+  role?: string;
 }): Promise<UserProfile | null> => {
   const { data, error } = await supabase
     .from('user_profile')
     .insert({
       ...userData,
-      role: 'admin_pondok'
+      role: userData.role || 'admin_pondok',
+      id: crypto.randomUUID() // Generate UUID for the user
     })
     .select()
     .single();
