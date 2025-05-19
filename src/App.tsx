@@ -14,6 +14,7 @@ import AdminPusatLPJ from "./pages/admin-pusat/LPJ";
 import AdminPusatPeriode from "./pages/admin-pusat/Periode";
 import AdminPusatPondok from "./pages/admin-pusat/Pondok";
 import AdminPusatPondokCreate from "./pages/admin-pusat/PondokCreate";
+import AdminPusatPondokEdit from "./pages/admin-pusat/PondokEdit";
 import AdminPondokDashboard from "./pages/admin-pondok/Dashboard";
 import AdminPondokRAB from "./pages/admin-pondok/RAB";
 import AdminPondokCreateRAB from "./pages/admin-pondok/CreateRAB";
@@ -77,6 +78,7 @@ const App = () => (
             <Route path="/admin-pusat/periode" element={<AdminPusatPeriode />} />
             <Route path="/admin-pusat/pondok" element={<AdminPusatPondok />} />
             <Route path="/admin-pusat/pondok/create" element={<AdminPusatPondokCreate />} />
+            <Route path="/admin-pusat/pondok/:id/edit" element={<AdminPusatPondokEdit />} />
             
             {/* Admin Pondok routes */}
             <Route path="/admin-pondok/dashboard" element={<AdminPondokDashboard />} />

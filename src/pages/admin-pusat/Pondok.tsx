@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { AdminPusatLayout } from "@/components/layout/AdminPusatLayout";
 import { Button } from "@/components/ui/button";
@@ -51,51 +52,9 @@ import { getPondokJenisLabel } from "@/lib/utils";
 import { Check, Edit, Eye, Plus, Search, Trash, Users } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAllPondok } from "@/services/api";
+import { fetchAllPondok, createPondok, verifyPondok } from "@/services/api";
 import { toast } from "sonner";
 import { Link, useNavigate } from "react-router-dom";
-
-interface PengursuFormData {
-  nama: string;
-  jabatan: PengurusJabatan;
-  nomor_telepon: string;
-}
-
-interface PondokFormData {
-  nama: string;
-  jenis: PondokJenis;
-  nomor_telepon: string;
-  alamat: string;
-  kode_pos: string;
-  provinsi_id: string;
-  kota_id: string;
-  daerah_sambung_id: string;
-  pengurus: PengursuFormData[];
-}
-
-const defaultPondokForm = (): PondokFormData => ({
-  nama: "",
-  jenis: PondokJenis.PPM,
-  nomor_telepon: "",
-  alamat: "",
-  kode_pos: "",
-  provinsi_id: "",
-  kota_id: "",
-  daerah_sambung_id: "",
-  pengurus: [
-    {
-      nama: "",
-      jabatan: PengurusJabatan.KETUA,
-      nomor_telepon: ""
-    }
-  ]
-});
-
-const defaultPengurusForm = (): PengursuFormData => ({
-  nama: "",
-  jabatan: PengurusJabatan.KETUA,
-  nomor_telepon: ""
-});
 
 const PondokPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -106,7 +65,6 @@ const PondokPage: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedPondok, setSelectedPondok] = useState<Pondok | null>(null);
-  const [formData, setFormData] = useState<PondokFormData>(defaultPondokForm());
   
   // Fetch pondoks data
   const { data: pondoks = [], isLoading: isLoadingPondoks } = useQuery({
@@ -127,64 +85,10 @@ const PondokPage: React.FC = () => {
     }
   });
 
-  // Create pondok mutation
-  const createPondokMutation = useMutation({
-    mutationFn: async (data: PondokFormData) => {
-      // 1. Insert pondok data
-      const { data: pondokData, error: pondokError } = await supabase
-        .from('pondok')
-        .insert({
-          nama: data.nama,
-          jenis: data.jenis,
-          nomor_telepon: data.nomor_telepon,
-          alamat: data.alamat,
-          kode_pos: data.kode_pos,
-          provinsi_id: data.provinsi_id,
-          kota_id: data.kota_id,
-          daerah_sambung_id: data.daerah_sambung_id,
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-      
-      if (pondokError) throw new Error(pondokError.message);
-
-      // 2. Insert pengurus data
-      if (data.pengurus.length > 0) {
-        const pengurusData = data.pengurus.map(p => ({
-          ...p,
-          pondok_id: pondokData.id
-        }));
-
-        const { error: pengurusError } = await supabase
-          .from('pengurus')
-          .insert(pengurusData);
-        
-        if (pengurusError) throw new Error(pengurusError.message);
-      }
-
-      return pondokData;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pondoks'] });
-      setIsDialogOpen(false);
-      setFormData(defaultPondokForm());
-      toast.success("Pondok berhasil ditambahkan");
-    },
-    onError: (error) => {
-      toast.error(`Error: ${error.message}`);
-    }
-  });
-
   // Verify pondok mutation
   const verifyPondokMutation = useMutation({
     mutationFn: async (pondokId: string) => {
-      const { error } = await supabase
-        .from('pondok')
-        .update({ accepted_at: new Date().toISOString() })
-        .eq('id', pondokId);
-      
-      if (error) throw new Error(error.message);
+      return verifyPondok(pondokId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pondoks'] });
@@ -214,45 +118,6 @@ const PondokPage: React.FC = () => {
     }
   });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handlePengurusChange = (index: number, field: keyof PengursuFormData, value: string) => {
-    setFormData(prev => {
-      const updatedPengurus = [...prev.pengurus];
-      updatedPengurus[index] = {
-        ...updatedPengurus[index],
-        [field]: value
-      };
-      return { ...prev, pengurus: updatedPengurus };
-    });
-  };
-
-  const addPengurus = () => {
-    setFormData(prev => ({
-      ...prev,
-      pengurus: [...prev.pengurus, defaultPengurusForm()]
-    }));
-  };
-
-  const removePengurus = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      pengurus: prev.pengurus.filter((_, i) => i !== index)
-    }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    createPondokMutation.mutate(formData);
-  };
-
   const handleVerify = (pondokId: string) => {
     verifyPondokMutation.mutate(pondokId);
   };
@@ -264,6 +129,10 @@ const PondokPage: React.FC = () => {
   const handleViewDetail = (pondok: Pondok) => {
     setSelectedPondok(pondok);
     setIsDetailDialogOpen(true);
+  };
+
+  const handleEditPondok = (pondok: Pondok) => {
+    navigate(`/admin-pusat/pondok/${pondok.id}/edit`);
   };
 
   // Filter pondoks based on search text, jenis, and verification status
@@ -334,6 +203,7 @@ const PondokPage: React.FC = () => {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Detail Pondok</DialogTitle>
+            <DialogDescription>Informasi lengkap tentang pondok</DialogDescription>
           </DialogHeader>
           {selectedPondok && (
             <div className="space-y-6">
@@ -411,6 +281,11 @@ const PondokPage: React.FC = () => {
                   <p className="text-muted-foreground">Belum ada admin untuk pondok ini</p>
                 )}
               </div>
+              <div className="flex justify-end">
+                <Button onClick={() => handleEditPondok(selectedPondok)}>
+                  Edit Pondok
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
@@ -436,7 +311,7 @@ const PondokPage: React.FC = () => {
                     <TableHead>Nama Pondok</TableHead>
                     <TableHead>Jenis</TableHead>
                     <TableHead>Nomor Telepon</TableHead>
-                    <TableHead>Alamat</TableHead>
+                    <TableHead className="hidden md:table-cell">Alamat</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Admin</TableHead>
                     <TableHead className="text-right">Aksi</TableHead>
@@ -456,8 +331,10 @@ const PondokPage: React.FC = () => {
                         <TableCell>
                           {getPondokJenisLabel(pondok.jenis)}
                         </TableCell>
-                        <TableCell>{pondok.nomor_telepon}</TableCell>
-                        <TableCell>{pondok.alamat}</TableCell>
+                        <TableCell className="whitespace-nowrap">{pondok.nomor_telepon}</TableCell>
+                        <TableCell className="hidden md:table-cell max-w-[200px] truncate">
+                          {pondok.alamat}
+                        </TableCell>
                         <TableCell>
                           {pondok.accepted_at ? (
                             <Badge className="bg-green-100 text-green-800 border-green-300">
@@ -473,7 +350,7 @@ const PondokPage: React.FC = () => {
                           {adminPondok ? (
                             <div className="flex items-center">
                               <Users className="h-3 w-3 mr-1 text-muted-foreground" />
-                              <span>{adminPondok.nama}</span>
+                              <span className="truncate max-w-[100px]">{adminPondok.nama}</span>
                             </div>
                           ) : (
                             <Badge variant="outline" className="text-muted-foreground">
@@ -496,7 +373,7 @@ const PondokPage: React.FC = () => {
                               variant="ghost"
                               size="sm"
                               className="h-8 w-8 p-0"
-                              onClick={() => console.log("Edit pondok", pondok)}
+                              onClick={() => handleEditPondok(pondok)}
                             >
                               <Edit className="h-4 w-4" />
                               <span className="sr-only">Edit</span>

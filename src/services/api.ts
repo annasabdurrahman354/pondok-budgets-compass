@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { DocumentStatus, LPJ, Periode, Pondok, RAB } from "@/types";
+import { DocumentStatus, LPJ, Periode, Pondok, RAB, PengurusJabatan, PondokJenis, UserProfile } from "@/types";
 
 // Fetch data related to Pondok
 export const fetchPondok = async (pondokId: string): Promise<Pondok | null> => {
@@ -36,6 +36,183 @@ export const fetchAllPondok = async (): Promise<Pondok[]> => {
   }
 
   return data as Pondok[];
+};
+
+export const updatePondok = async (pondokData: Partial<Pondok> & { id: string }): Promise<Pondok | null> => {
+  // Reset verification status when pondok data is updated
+  const updateData = {
+    ...pondokData,
+    accepted_at: null,
+    updated_at: new Date().toISOString()
+  };
+
+  const { data, error } = await supabase
+    .from('pondok')
+    .update(updateData)
+    .eq('id', pondokData.id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating pondok:', error);
+    throw new Error(error.message);
+  }
+
+  return data as Pondok;
+};
+
+export const createPondok = async (pondokData: Omit<Pondok, 'id' | 'accepted_at' | 'pengurus'>): Promise<Pondok | null> => {
+  const { data, error } = await supabase
+    .from('pondok')
+    .insert({
+      nama: pondokData.nama,
+      jenis: pondokData.jenis,
+      nomor_telepon: pondokData.nomor_telepon,
+      alamat: pondokData.alamat,
+      kode_pos: pondokData.kode_pos,
+      provinsi_id: pondokData.provinsi_id,
+      kota_id: pondokData.kota_id,
+      daerah_sambung_id: pondokData.daerah_sambung_id,
+      updated_at: new Date().toISOString()
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating pondok:', error);
+    throw new Error(error.message);
+  }
+
+  return data as Pondok;
+};
+
+export const verifyPondok = async (pondokId: string): Promise<boolean> => {
+  const { error } = await supabase
+    .from('pondok')
+    .update({ 
+      accepted_at: new Date().toISOString() 
+    })
+    .eq('id', pondokId);
+  
+  if (error) {
+    console.error('Error verifying pondok:', error);
+    throw new Error(error.message);
+  }
+
+  return true;
+};
+
+export const addPengurus = async (pengurusData: {
+  pondok_id: string;
+  nama: string;
+  jabatan: PengurusJabatan;
+  nomor_telepon?: string;
+}): Promise<any> => {
+  // First update the pondok's verification status
+  await supabase
+    .from('pondok')
+    .update({
+      accepted_at: null,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', pengurusData.pondok_id);
+  
+  // Then add the pengurus
+  const { data, error } = await supabase
+    .from('pengurus')
+    .insert(pengurusData)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error adding pengurus:', error);
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
+export const updatePengurus = async (pengurusData: {
+  id: string;
+  pondok_id: string;
+  nama: string;
+  jabatan: PengurusJabatan;
+  nomor_telepon?: string;
+}): Promise<any> => {
+  // First update the pondok's verification status
+  await supabase
+    .from('pondok')
+    .update({
+      accepted_at: null,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', pengurusData.pondok_id);
+  
+  // Then update the pengurus
+  const { data, error } = await supabase
+    .from('pengurus')
+    .update({
+      nama: pengurusData.nama,
+      jabatan: pengurusData.jabatan,
+      nomor_telepon: pengurusData.nomor_telepon
+    })
+    .eq('id', pengurusData.id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating pengurus:', error);
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
+export const deletePengurus = async (pengurusId: string, pondokId: string): Promise<boolean> => {
+  // First update the pondok's verification status
+  await supabase
+    .from('pondok')
+    .update({
+      accepted_at: null,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', pondokId);
+  
+  // Then delete the pengurus
+  const { error } = await supabase
+    .from('pengurus')
+    .delete()
+    .eq('id', pengurusId);
+
+  if (error) {
+    console.error('Error deleting pengurus:', error);
+    throw new Error(error.message);
+  }
+
+  return true;
+};
+
+export const createAdminPondok = async (userData: {
+  nama: string;
+  email: string;
+  nomor_telepon?: string;
+  pondok_id: string;
+}): Promise<UserProfile | null> => {
+  const { data, error } = await supabase
+    .from('user_profile')
+    .insert({
+      ...userData,
+      role: 'admin_pondok'
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating admin pondok:', error);
+    throw new Error(error.message);
+  }
+
+  return data as UserProfile;
 };
 
 // Fetch data related to Periode
