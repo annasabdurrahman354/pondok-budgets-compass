@@ -48,9 +48,11 @@ const LPJPage: React.FC = () => {
   const isVerified = !!pondok?.accepted_at;
   
   // Check if LPJ can be submitted (within submission window)
+  // Use current date for comparison, not the API date
+  const today = new Date();
   const canSubmitLPJ = currentPeriode && 
-    new Date() >= new Date(currentPeriode.awal_lpj) && 
-    new Date() <= new Date(currentPeriode.akhir_lpj);
+    today >= new Date(currentPeriode.awal_lpj) && 
+    today <= new Date(currentPeriode.akhir_lpj);
   
   // Check if RAB for the current period exists and has been approved
   const hasApprovedRAB = rabs.some(rab => 
@@ -70,6 +72,18 @@ const LPJPage: React.FC = () => {
     !hasApprovedRAB ||
     currentPeriodLPJExists || 
     isLoading;
+
+  console.log({
+    isVerified,
+    canSubmitLPJ,
+    hasApprovedRAB,
+    currentPeriodLPJExists,
+    isLoading,
+    createButtonDisabled,
+    today: today.toISOString(),
+    awalLpj: currentPeriode?.awal_lpj,
+    akhirLpj: currentPeriode?.akhir_lpj
+  });
 
   return (
     <AdminPondokLayout title="Laporan Pertanggung Jawaban">

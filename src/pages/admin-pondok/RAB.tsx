@@ -41,9 +41,11 @@ const RABPage: React.FC = () => {
   const isVerified = !!pondok?.accepted_at;
   
   // Check if RAB can be submitted (within submission window)
+  // Use current date for comparison, not the API date
+  const today = new Date();
   const canSubmitRAB = currentPeriode && 
-    new Date() >= new Date(currentPeriode.awal_rab) && 
-    new Date() <= new Date(currentPeriode.akhir_rab);
+    today >= new Date(currentPeriode.awal_rab) && 
+    today <= new Date(currentPeriode.akhir_rab);
   
   // Check if RAB for the current period already exists
   const currentPeriodRABExists = rabs.some(rab => 
@@ -56,6 +58,17 @@ const RABPage: React.FC = () => {
     !canSubmitRAB || 
     currentPeriodRABExists || 
     isLoading;
+
+  console.log({
+    isVerified,
+    canSubmitRAB,
+    currentPeriodRABExists,
+    isLoading,
+    createButtonDisabled,
+    today: today.toISOString(),
+    awalRab: currentPeriode?.awal_rab,
+    akhirRab: currentPeriode?.akhir_rab
+  });
 
   return (
     <AdminPondokLayout title="Rencana Anggaran Belanja">

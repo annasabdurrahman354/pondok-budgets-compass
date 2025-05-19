@@ -1,5 +1,11 @@
 
 import React from "react";
+import { DocumentStatus, RAB } from "@/types";
+import { formatCurrency } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Eye } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -8,160 +14,104 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { RAB, DocumentStatus } from "@/types";
-import { formatCurrency, formatPeriode, getStatusBadgeClass } from "@/lib/utils";
-import { FileText, CheckCircle, XCircle, ExternalLink } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface RABTableProps {
   data?: RAB[];
-  rabs?: RAB[]; // Add this to handle the prop passed from RABPage
-  title?: string;
-  onView?: (rab: RAB) => void;
+  rabs?: RAB[];
+  isLoading?: boolean;
+  viewOnly?: boolean; // Set to true to only show view button
+  onSelect?: (rab: RAB) => void;
   onApprove?: (rab: RAB) => void;
   onRevision?: (rab: RAB) => void;
-  isLoading?: boolean;
-  viewOnly?: boolean;
 }
 
 export const RABTable: React.FC<RABTableProps> = ({
   data,
-  rabs, // Handle both prop names
-  title = "Daftar RAB",
-  onView,
+  rabs,
+  isLoading = false,
+  viewOnly = false,
+  onSelect,
   onApprove,
   onRevision,
-  isLoading = false,
-  viewOnly = false
 }) => {
-  // Use rabs prop if data is not provided, ensuring backward compatibility
-  const rabsList = data || rabs || [];
+  const navigate = useNavigate();
   
+  // Handle both data and rabs props for backward compatibility
+  const items = data || rabs || [];
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-4">
+        <p>Memuat data...</p>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="text-center py-4">
+        <p className="text-muted-foreground">Belum ada data RAB</p>
+      </div>
+    );
+  }
+
   return (
-    <Card>
-      {title && (
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-        </CardHeader>
-      )}
-      <CardContent>
-        {isLoading ? (
-          <div className="text-center py-6 text-muted-foreground">
-            Memuat data...
-          </div>
-        ) : rabsList.length === 0 ? (
-          <div className="text-center py-6 text-muted-foreground">
-            Belum ada data RAB
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Pondok</TableHead>
-                  <TableHead>Periode</TableHead>
-                  <TableHead>Saldo Awal</TableHead>
-                  <TableHead>Rencana Pemasukan</TableHead>
-                  <TableHead>Rencana Pengeluaran</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rabsList.map((rab) => (
-                  <TableRow key={rab.pondok_id + rab.periode_id}>
-                    <TableCell className="font-medium">
-                      {rab.pondok?.nama || "Unknown"}
-                    </TableCell>
-                    <TableCell>{formatPeriode(rab.periode_id)}</TableCell>
-                    <TableCell>{formatCurrency(rab.saldo_awal)}</TableCell>
-                    <TableCell>{formatCurrency(rab.rencana_pemasukan)}</TableCell>
-                    <TableCell>{formatCurrency(rab.rencana_pengeluaran)}</TableCell>
-                    <TableCell>
-                      <Badge
-                        className={getStatusBadgeClass(rab.status)}
-                      >
-                        {rab.status === DocumentStatus.DIAJUKAN
-                          ? "Diajukan"
-                          : rab.status === DocumentStatus.DITERIMA
-                          ? "Diterima"
-                          : "Revisi"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {rab.submitted_at
-                        ? new Date(rab.submitted_at).toLocaleDateString("id-ID")
-                        : "-"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {onView && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => onView(rab)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <FileText className="h-4 w-4" />
-                            <span className="sr-only">Lihat</span>
-                          </Button>
-                        )}
-                        {onApprove && !viewOnly && rab.status === DocumentStatus.DIAJUKAN && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 w-8 p-0 text-green-500 hover:text-green-700"
-                            onClick={() => onApprove(rab)}
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                            <span className="sr-only">Setujui</span>
-                          </Button>
-                        )}
-                        {onRevision && !viewOnly && rab.status === DocumentStatus.DIAJUKAN && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
-                            onClick={() => onRevision(rab)}
-                          >
-                            <XCircle className="h-4 w-4" />
-                            <span className="sr-only">Revisi</span>
-                          </Button>
-                        )}
-                        {rab.dokumen_path && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 w-8 p-0"
-                            asChild
-                          >
-                            <a
-                              href="#"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                              <span className="sr-only">Dokumen</span>
-                            </a>
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <ScrollArea className="w-full">
+      <div className="min-w-full">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Periode</TableHead>
+              <TableHead>Pondok</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Tanggal Pengajuan</TableHead>
+              <TableHead>Saldo Awal</TableHead>
+              <TableHead>Rencana Pemasukan</TableHead>
+              <TableHead>Rencana Pengeluaran</TableHead>
+              <TableHead className="text-right">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((rab) => (
+              <TableRow key={rab.id}>
+                <TableCell>
+                  {rab.periode ? `${rab.periode.tahun}-${String(rab.periode.bulan).padStart(2, '0')}` : "-"}
+                </TableCell>
+                <TableCell>{rab.pondok?.nama || "-"}</TableCell>
+                <TableCell>
+                  {rab.status === DocumentStatus.DIAJUKAN ? (
+                    <Badge variant="outline">Diajukan</Badge>
+                  ) : rab.status === DocumentStatus.DITERIMA ? (
+                    <Badge className="bg-green-100 text-green-800 border-green-300">
+                      Diterima
+                    </Badge>
+                  ) : (
+                    <Badge variant="destructive">Revisi</Badge>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {rab.submitted_at
+                    ? new Date(rab.submitted_at).toLocaleDateString("id-ID")
+                    : "-"}
+                </TableCell>
+                <TableCell>{formatCurrency(rab.saldo_awal || 0)}</TableCell>
+                <TableCell>{formatCurrency(rab.rencana_pemasukan || 0)}</TableCell>
+                <TableCell>{formatCurrency(rab.rencana_pengeluaran || 0)}</TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => (viewOnly ? navigate(`/admin-pondok/rab/${rab.id}`) : onSelect?.(rab))}
+                  >
+                    <Eye className="h-4 w-4 mr-1" /> Detail
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </ScrollArea>
   );
 };

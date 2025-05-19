@@ -1,5 +1,11 @@
 
 import React from "react";
+import { DocumentStatus, LPJ } from "@/types";
+import { formatCurrency } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Eye } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -8,150 +14,104 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { LPJ, DocumentStatus } from "@/types";
-import { formatCurrency, formatPeriode, getStatusBadgeClass } from "@/lib/utils";
-import { FileText, CheckCircle, XCircle, ExternalLink } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface LPJTableProps {
   data?: LPJ[];
-  lpjs?: LPJ[]; // Add this to handle the prop passed from LPJPage
-  title?: string;
-  onView?: (lpj: LPJ) => void;
+  lpjs?: LPJ[];
+  isLoading?: boolean;
+  viewOnly?: boolean; // Set to true to only show view button
+  onSelect?: (lpj: LPJ) => void;
   onApprove?: (lpj: LPJ) => void;
   onRevision?: (lpj: LPJ) => void;
-  isLoading?: boolean;
-  viewOnly?: boolean;
 }
 
 export const LPJTable: React.FC<LPJTableProps> = ({
   data,
-  lpjs, // Handle both prop names
-  title = "Daftar LPJ",
-  onView,
+  lpjs,
+  isLoading = false,
+  viewOnly = false,
+  onSelect,
   onApprove,
   onRevision,
-  isLoading = false,
-  viewOnly = false
 }) => {
-  // Use lpjs prop if data is not provided, ensuring backward compatibility
-  const lpjsList = data || lpjs || [];
+  const navigate = useNavigate();
   
+  // Handle both data and lpjs props for backward compatibility
+  const items = data || lpjs || [];
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-4">
+        <p>Memuat data...</p>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="text-center py-4">
+        <p className="text-muted-foreground">Belum ada data LPJ</p>
+      </div>
+    );
+  }
+
   return (
-    <Card>
-      {title && (
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-        </CardHeader>
-      )}
-      <CardContent>
-        {isLoading ? (
-          <div className="text-center py-6 text-muted-foreground">
-            Memuat data...
-          </div>
-        ) : lpjsList.length === 0 ? (
-          <div className="text-center py-6 text-muted-foreground">
-            Belum ada data LPJ
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Pondok</TableHead>
-                  <TableHead>Periode</TableHead>
-                  <TableHead>Saldo Awal</TableHead>
-                  <TableHead>Realisasi Pemasukan</TableHead>
-                  <TableHead>Realisasi Pengeluaran</TableHead>
-                  <TableHead>Sisa Saldo</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lpjsList.map((lpj) => (
-                  <TableRow key={lpj.pondok_id + lpj.periode_id}>
-                    <TableCell className="font-medium">
-                      {lpj.pondok?.nama || "Unknown"}
-                    </TableCell>
-                    <TableCell>{formatPeriode(lpj.periode_id)}</TableCell>
-                    <TableCell>{formatCurrency(lpj.saldo_awal)}</TableCell>
-                    <TableCell>{formatCurrency(lpj.realisasi_pemasukan)}</TableCell>
-                    <TableCell>{formatCurrency(lpj.realisasi_pengeluaran)}</TableCell>
-                    <TableCell>{formatCurrency(lpj.sisa_saldo)}</TableCell>
-                    <TableCell>
-                      <Badge className={getStatusBadgeClass(lpj.status)}>
-                        {lpj.status === DocumentStatus.DIAJUKAN
-                          ? "Diajukan"
-                          : lpj.status === DocumentStatus.DITERIMA
-                          ? "Diterima"
-                          : "Revisi"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {onView && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => onView(lpj)}
-                            className="h-8 w-8 p-0"
-                          >
-                            <FileText className="h-4 w-4" />
-                            <span className="sr-only">Lihat</span>
-                          </Button>
-                        )}
-                        {onApprove && !viewOnly && lpj.status === DocumentStatus.DIAJUKAN && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 w-8 p-0 text-green-500 hover:text-green-700"
-                            onClick={() => onApprove(lpj)}
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                            <span className="sr-only">Setujui</span>
-                          </Button>
-                        )}
-                        {onRevision && !viewOnly && lpj.status === DocumentStatus.DIAJUKAN && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 w-8 p-0 text-red-500 hover:text-red-700"
-                            onClick={() => onRevision(lpj)}
-                          >
-                            <XCircle className="h-4 w-4" />
-                            <span className="sr-only">Revisi</span>
-                          </Button>
-                        )}
-                        {lpj.dokumen_path && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 w-8 p-0"
-                            asChild
-                          >
-                            <a href="#" target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="h-4 w-4" />
-                              <span className="sr-only">Dokumen</span>
-                            </a>
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <ScrollArea className="w-full">
+      <div className="min-w-full">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Periode</TableHead>
+              <TableHead>Pondok</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Tanggal Pengajuan</TableHead>
+              <TableHead>Realisasi Pemasukan</TableHead>
+              <TableHead>Realisasi Pengeluaran</TableHead>
+              <TableHead>Sisa Saldo</TableHead>
+              <TableHead className="text-right">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((lpj) => (
+              <TableRow key={lpj.id}>
+                <TableCell>
+                  {lpj.periode ? `${lpj.periode.tahun}-${String(lpj.periode.bulan).padStart(2, '0')}` : "-"}
+                </TableCell>
+                <TableCell>{lpj.pondok?.nama || "-"}</TableCell>
+                <TableCell>
+                  {lpj.status === DocumentStatus.DIAJUKAN ? (
+                    <Badge variant="outline">Diajukan</Badge>
+                  ) : lpj.status === DocumentStatus.DITERIMA ? (
+                    <Badge className="bg-green-100 text-green-800 border-green-300">
+                      Diterima
+                    </Badge>
+                  ) : (
+                    <Badge variant="destructive">Revisi</Badge>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {lpj.submitted_at
+                    ? new Date(lpj.submitted_at).toLocaleDateString("id-ID")
+                    : "-"}
+                </TableCell>
+                <TableCell>{formatCurrency(lpj.realisasi_pemasukan || 0)}</TableCell>
+                <TableCell>{formatCurrency(lpj.realisasi_pengeluaran || 0)}</TableCell>
+                <TableCell>{formatCurrency(lpj.sisa_saldo || 0)}</TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => (viewOnly ? navigate(`/admin-pondok/lpj/${lpj.id}`) : onSelect?.(lpj))}
+                  >
+                    <Eye className="h-4 w-4 mr-1" /> Detail
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </ScrollArea>
   );
 };
