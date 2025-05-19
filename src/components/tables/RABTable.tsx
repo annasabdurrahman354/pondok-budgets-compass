@@ -19,6 +19,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 interface RABTableProps {
   data?: RAB[];
   rabs?: RAB[];
+  title?: string; // Optional title prop
   isLoading?: boolean;
   viewOnly?: boolean; // Set to true to only show view button
   onSelect?: (rab: RAB) => void;
@@ -29,6 +30,7 @@ interface RABTableProps {
 export const RABTable: React.FC<RABTableProps> = ({
   data,
   rabs,
+  title,
   isLoading = false,
   viewOnly = false,
   onSelect,
@@ -58,7 +60,8 @@ export const RABTable: React.FC<RABTableProps> = ({
 
   return (
     <ScrollArea className="w-full">
-      <div className="min-w-full">
+      {title && <h3 className="text-lg font-medium mb-3">{title}</h3>}
+      <div className="w-full overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

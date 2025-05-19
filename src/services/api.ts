@@ -1,5 +1,6 @@
+
 import { supabase } from "@/integrations/supabase/client";
-import { LPJ, Periode, Pondok, RAB, UserProfile } from "@/types";
+import { DocumentStatus, LPJ, Periode, Pondok, PondokJenis, RAB, UserProfile } from "@/types";
 
 // Function to fetch all pondoks
 export const fetchAllPondok = async (): Promise<Pondok[]> => {
@@ -9,7 +10,12 @@ export const fetchAllPondok = async (): Promise<Pondok[]> => {
       .select('*')
       .order('nama', { ascending: true });
     if (error) throw error;
-    return data || [];
+    
+    // Convert jenis string to PondokJenis enum
+    return (data || []).map(pondok => ({
+      ...pondok,
+      jenis: pondok.jenis as PondokJenis
+    }));
   } catch (error) {
     console.error("Error fetching pondoks:", error);
     return [];
@@ -25,7 +31,14 @@ export const fetchPondok = async (id: string): Promise<Pondok | null> => {
       .eq('id', id)
       .single();
     if (error) throw error;
-    return data || null;
+    
+    if (data) {
+      return {
+        ...data,
+        jenis: data.jenis as PondokJenis
+      };
+    }
+    return null;
   } catch (error) {
     console.error("Error fetching pondok:", error);
     return null;
@@ -55,9 +68,35 @@ export const fetchRABsByPondok = async (pondokId: string): Promise<RAB[]> => {
       .eq('pondok_id', pondokId)
       .order('submitted_at', { ascending: false });
     if (error) throw error;
-    return data || [];
+    
+    // Convert status string to DocumentStatus enum
+    return (data || []).map(rab => ({
+      ...rab,
+      status: rab.status as DocumentStatus
+    }));
   } catch (error) {
     console.error("Error fetching RABs:", error);
+    return [];
+  }
+};
+
+// Function to fetch RABs by period
+export const fetchRABsByPeriode = async (periodeId: string): Promise<RAB[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('rab')
+      .select('*, pondok(*), periode(*)')
+      .eq('periode_id', periodeId)
+      .order('submitted_at', { ascending: false });
+    if (error) throw error;
+    
+    // Convert status string to DocumentStatus enum
+    return (data || []).map(rab => ({
+      ...rab,
+      status: rab.status as DocumentStatus
+    }));
+  } catch (error) {
+    console.error("Error fetching RABs by period:", error);
     return [];
   }
 };
@@ -71,9 +110,47 @@ export const fetchRAB = async (rabId: string): Promise<RAB | null> => {
       .eq('id', rabId)
       .single();
     if (error) throw error;
-    return data || null;
+    
+    if (data) {
+      return {
+        ...data,
+        status: data.status as DocumentStatus
+      };
+    }
+    return null;
   } catch (error) {
     console.error("Error fetching RAB:", error);
+    return null;
+  }
+};
+
+// Function to fetch RAB detail for a specific period and pondok
+export const fetchRABDetail = async (pondokId: string, periodeId: string): Promise<RAB | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('rab')
+      .select('*, pondok(*), periode(*)')
+      .eq('pondok_id', pondokId)
+      .eq('periode_id', periodeId)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned - not an error in this context
+        return null;
+      }
+      throw error;
+    }
+    
+    if (data) {
+      return {
+        ...data,
+        status: data.status as DocumentStatus
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error("Error fetching RAB detail:", error);
     return null;
   }
 };
@@ -87,9 +164,35 @@ export const fetchLPJsByPondok = async (pondokId: string): Promise<LPJ[]> => {
       .eq('pondok_id', pondokId)
       .order('submitted_at', { ascending: false });
     if (error) throw error;
-    return data || [];
+    
+    // Convert status string to DocumentStatus enum
+    return (data || []).map(lpj => ({
+      ...lpj,
+      status: lpj.status as DocumentStatus
+    }));
   } catch (error) {
     console.error("Error fetching LPJs:", error);
+    return [];
+  }
+};
+
+// Function to fetch LPJs by period
+export const fetchLPJsByPeriode = async (periodeId: string): Promise<LPJ[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('lpj')
+      .select('*, pondok(*), periode(*)')
+      .eq('periode_id', periodeId)
+      .order('submitted_at', { ascending: false });
+    if (error) throw error;
+    
+    // Convert status string to DocumentStatus enum
+    return (data || []).map(lpj => ({
+      ...lpj,
+      status: lpj.status as DocumentStatus
+    }));
+  } catch (error) {
+    console.error("Error fetching LPJs by period:", error);
     return [];
   }
 };
@@ -103,7 +206,14 @@ export const fetchLPJ = async (lpjId: string): Promise<LPJ | null> => {
       .eq('id', lpjId)
       .single();
     if (error) throw error;
-    return data || null;
+    
+    if (data) {
+      return {
+        ...data,
+        status: data.status as DocumentStatus
+      };
+    }
+    return null;
   } catch (error) {
     console.error("Error fetching LPJ:", error);
     return null;
@@ -212,6 +322,36 @@ export const deletePeriode = async (periodeId: string): Promise<void> => {
   }
 };
 
+// Function to update a pondok
+export const updatePondok = async (pondokId: string, pondokData: Partial<Pondok>): Promise<Pondok | null> => {
+  try {
+    const { error } = await supabase
+      .from('pondok')
+      .update(pondokData)
+      .eq('id', pondokId);
+
+    if (error) throw error;
+
+    // Fetch the updated pondok to return
+    const { data: updatedPondok } = await supabase
+      .from('pondok')
+      .select('*')
+      .eq('id', pondokId)
+      .single();
+
+    if (updatedPondok) {
+      return {
+        ...updatedPondok,
+        jenis: updatedPondok.jenis as PondokJenis
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error("Error updating pondok:", error);
+    return null;
+  }
+};
+
 // Function to create a new pondok
 export const createPondok = async (pondokData: Omit<Pondok, "id" | "accepted_at" | "pengurus">): Promise<Pondok | null> => {
   try {
@@ -223,6 +363,7 @@ export const createPondok = async (pondokData: Omit<Pondok, "id" | "accepted_at"
       .insert({
         id: pondokId,
         ...pondokData,
+        updated_at: new Date().toISOString()
       });
 
     if (error) throw error;
@@ -234,9 +375,65 @@ export const createPondok = async (pondokData: Omit<Pondok, "id" | "accepted_at"
       .eq('id', pondokId)
       .single();
 
-    return newPondok;
+    if (newPondok) {
+      return {
+        ...newPondok,
+        jenis: newPondok.jenis as PondokJenis
+      };
+    }
+    return null;
   } catch (error) {
     console.error("Error creating pondok:", error);
+    throw error;
+  }
+};
+
+// Function to add a pengurus
+export const addPengurus = async (pengurusData: any): Promise<any> => {
+  try {
+    const { data, error } = await supabase
+      .from('pengurus')
+      .insert(pengurusData)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error("Error adding pengurus:", error);
+    throw error;
+  }
+};
+
+// Function to update a pengurus
+export const updatePengurus = async (pengurusId: string, pengurusData: any): Promise<any> => {
+  try {
+    const { data, error } = await supabase
+      .from('pengurus')
+      .update(pengurusData)
+      .eq('id', pengurusId)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error("Error updating pengurus:", error);
+    throw error;
+  }
+};
+
+// Function to delete a pengurus
+export const deletePengurus = async (pengurusId: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('pengurus')
+      .delete()
+      .eq('id', pengurusId);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error("Error deleting pengurus:", error);
     throw error;
   }
 };
@@ -271,8 +468,129 @@ export const createAdminPondok = async (userData: any): Promise<any> => {
   }
 };
 
+// Function to upload RAB file
+export const uploadRABFile = async (file: File, pondokId: string, periodeId: string): Promise<string | null> => {
+  try {
+    const filePath = `rab/${pondokId}/${periodeId}/${Date.now()}_${file.name}`;
+    
+    const { error } = await supabase
+      .storage
+      .from('documents')
+      .upload(filePath, file);
+      
+    if (error) throw error;
+    
+    return filePath;
+  } catch (error) {
+    console.error("Error uploading RAB file:", error);
+    return null;
+  }
+};
+
+// Function to upload LPJ file
+export const uploadLPJFile = async (file: File, pondokId: string, periodeId: string): Promise<string | null> => {
+  try {
+    const filePath = `lpj/${pondokId}/${periodeId}/${Date.now()}_${file.name}`;
+    
+    const { error } = await supabase
+      .storage
+      .from('documents')
+      .upload(filePath, file);
+      
+    if (error) throw error;
+    
+    return filePath;
+  } catch (error) {
+    console.error("Error uploading LPJ file:", error);
+    return null;
+  }
+};
+
+// Function to get a file URL
+export const getFileUrl = async (path: string): Promise<string | null> => {
+  if (!path) return null;
+  
+  try {
+    const { data } = await supabase
+      .storage
+      .from('documents')
+      .getPublicUrl(path);
+      
+    return data.publicUrl;
+  } catch (error) {
+    console.error("Error getting file URL:", error);
+    return null;
+  }
+};
+
+// Function to create a new RAB
+export const createRAB = async (rabData: Partial<RAB>): Promise<RAB | null> => {
+  try {
+    const { error } = await supabase
+      .from('rab')
+      .insert(rabData);
+      
+    if (error) throw error;
+    
+    // Get the newly created RAB
+    const { data } = await supabase
+      .from('rab')
+      .select('*, pondok(*), periode(*)')
+      .eq('pondok_id', rabData.pondok_id)
+      .eq('periode_id', rabData.periode_id)
+      .order('submitted_at', { ascending: false })
+      .limit(1)
+      .single();
+    
+    if (data) {
+      return {
+        ...data,
+        status: data.status as DocumentStatus
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Error creating RAB:", error);
+    return null;
+  }
+};
+
+// Function to create a new LPJ
+export const createLPJ = async (lpjData: Partial<LPJ>): Promise<LPJ | null> => {
+  try {
+    const { error } = await supabase
+      .from('lpj')
+      .insert(lpjData);
+      
+    if (error) throw error;
+    
+    // Get the newly created LPJ
+    const { data } = await supabase
+      .from('lpj')
+      .select('*, pondok(*), periode(*)')
+      .eq('pondok_id', lpjData.pondok_id)
+      .eq('periode_id', lpjData.periode_id)
+      .order('submitted_at', { ascending: false })
+      .limit(1)
+      .single();
+    
+    if (data) {
+      return {
+        ...data,
+        status: data.status as DocumentStatus
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Error creating LPJ:", error);
+    return null;
+  }
+};
+
 // Function to update RAB status
-export const updateRABStatus = async (rabId: string, status: string, pesan_revisi: string | null = null): Promise<RAB | null> => {
+export const updateRABStatus = async (rabId: string, status: DocumentStatus, pesan_revisi: string | null = null): Promise<RAB | null> => {
   try {
     const { data, error } = await supabase
       .from('rab')
@@ -285,7 +603,10 @@ export const updateRABStatus = async (rabId: string, status: string, pesan_revis
       throw new Error(`Failed to update RAB status: ${error.message}`);
     }
 
-    return data as RAB;
+    return {
+      ...data,
+      status: data.status as DocumentStatus
+    } as RAB;
   } catch (error: any) {
     console.error("Error updating RAB status:", error.message);
     throw error;
@@ -293,7 +614,7 @@ export const updateRABStatus = async (rabId: string, status: string, pesan_revis
 };
 
 // Function to update LPJ status
-export const updateLPJStatus = async (lpjId: string, status: string, pesan_revisi: string | null = null): Promise<LPJ | null> => {
+export const updateLPJStatus = async (lpjId: string, status: DocumentStatus, pesan_revisi: string | null = null): Promise<LPJ | null> => {
   try {
     const { data, error } = await supabase
       .from('lpj')
@@ -306,7 +627,10 @@ export const updateLPJStatus = async (lpjId: string, status: string, pesan_revis
       throw new Error(`Failed to update LPJ status: ${error.message}`);
     }
 
-    return data as LPJ;
+    return {
+      ...data,
+      status: data.status as DocumentStatus
+    } as LPJ;
   } catch (error: any) {
     console.error("Error updating LPJ status:", error.message);
     throw error;

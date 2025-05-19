@@ -19,6 +19,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 interface LPJTableProps {
   data?: LPJ[];
   lpjs?: LPJ[];
+  title?: string; // Optional title prop
   isLoading?: boolean;
   viewOnly?: boolean; // Set to true to only show view button
   onSelect?: (lpj: LPJ) => void;
@@ -29,6 +30,7 @@ interface LPJTableProps {
 export const LPJTable: React.FC<LPJTableProps> = ({
   data,
   lpjs,
+  title,
   isLoading = false,
   viewOnly = false,
   onSelect,
@@ -58,7 +60,8 @@ export const LPJTable: React.FC<LPJTableProps> = ({
 
   return (
     <ScrollArea className="w-full">
-      <div className="min-w-full">
+      {title && <h3 className="text-lg font-medium mb-3">{title}</h3>}
+      <div className="w-full overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
