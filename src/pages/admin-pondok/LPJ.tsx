@@ -4,13 +4,13 @@ import { AdminPondokLayout } from "@/components/layout/AdminPondokLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { DocumentStatus, LPJ } from "@/types";
+import { LPJTable } from "@/components/tables/LPJTable";
+import { DocumentStatus, RAB } from "@/types";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchLPJsByPondok, fetchCurrentPeriode, fetchRABsByPondok, fetchPondok } from "@/services/api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Clock, Plus } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 const LPJPage: React.FC = () => {
   const { user } = useAuth();
@@ -53,14 +53,14 @@ const LPJPage: React.FC = () => {
     new Date() <= new Date(currentPeriode.akhir_lpj);
   
   // Check if RAB for the current period exists and has been approved
-  const hasApprovedRAB = currentPeriode && rabs.some(rab => 
-    rab.periode_id === currentPeriode.id && 
+  const hasApprovedRAB = rabs.some(rab => 
+    rab.periode_id === currentPeriode?.id && 
     rab.status === DocumentStatus.DITERIMA
   );
   
   // Check if LPJ for the current period already exists
-  const currentPeriodLPJExists = currentPeriode && lpjs.some(lpj => 
-    lpj.periode_id === currentPeriode.id
+  const currentPeriodLPJExists = lpjs.some(lpj => 
+    lpj.periode_id === currentPeriode?.id
   );
 
   // Determine button state based on several conditions
@@ -135,86 +135,13 @@ const LPJPage: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="w-full overflow-auto">
-            <div className="min-w-[800px]">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="py-3 px-4 text-left font-medium">Periode</th>
-                    <th className="py-3 px-4 text-left font-medium">Saldo Awal</th>
-                    <th className="py-3 px-4 text-left font-medium">Realisasi Pemasukan</th>
-                    <th className="py-3 px-4 text-left font-medium">Realisasi Pengeluaran</th>
-                    <th className="py-3 px-4 text-left font-medium">Sisa Saldo</th>
-                    <th className="py-3 px-4 text-left font-medium">Status</th>
-                    <th className="py-3 px-4 text-left font-medium">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoading ? (
-                    <tr>
-                      <td colSpan={7} className="py-6 text-center text-muted-foreground">
-                        Memuat data...
-                      </td>
-                    </tr>
-                  ) : lpjs.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-6 text-center text-muted-foreground">
-                        Belum ada data LPJ
-                      </td>
-                    </tr>
-                  ) : (
-                    lpjs.map((lpj) => (
-                      <tr key={lpj.id} className="border-b">
-                        <td className="py-3 px-4">
-                          {lpj.periode?.tahun}-{lpj.periode?.bulan.toString().padStart(2, '0')}
-                        </td>
-                        <td className="py-3 px-4">
-                          {new Intl.NumberFormat('id-ID', {
-                            style: 'currency',
-                            currency: 'IDR'
-                          }).format(lpj.saldo_awal || 0)}
-                        </td>
-                        <td className="py-3 px-4">
-                          {new Intl.NumberFormat('id-ID', {
-                            style: 'currency',
-                            currency: 'IDR'
-                          }).format(lpj.realisasi_pemasukan || 0)}
-                        </td>
-                        <td className="py-3 px-4">
-                          {new Intl.NumberFormat('id-ID', {
-                            style: 'currency',
-                            currency: 'IDR'
-                          }).format(lpj.realisasi_pengeluaran || 0)}
-                        </td>
-                        <td className="py-3 px-4">
-                          {new Intl.NumberFormat('id-ID', {
-                            style: 'currency',
-                            currency: 'IDR'
-                          }).format(lpj.sisa_saldo || 0)}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            lpj.status === DocumentStatus.DITERIMA
-                              ? "bg-green-100 text-green-800"
-                              : lpj.status === DocumentStatus.REVISI
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-blue-100 text-blue-800"
-                          }`}>
-                            {lpj.status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Button variant="outline" size="sm">
-                            Lihat
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </ScrollArea>
+          <div className="overflow-x-auto">
+            <LPJTable 
+              lpjs={lpjs} 
+              isLoading={isLoading}
+              viewOnly
+            />
+          </div>
         </CardContent>
       </Card>
     </AdminPondokLayout>

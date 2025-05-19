@@ -4,13 +4,13 @@ import { AdminPondokLayout } from "@/components/layout/AdminPondokLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { RABTable } from "@/components/tables/RABTable";
 import { DocumentStatus, RAB } from "@/types";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchRABsByPondok, fetchCurrentPeriode, fetchPondok } from "@/services/api";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Clock, Plus } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 const RABPage: React.FC = () => {
   const { user } = useAuth();
@@ -46,8 +46,8 @@ const RABPage: React.FC = () => {
     new Date() <= new Date(currentPeriode.akhir_rab);
   
   // Check if RAB for the current period already exists
-  const currentPeriodRABExists = currentPeriode && rabs.some(rab => 
-    rab.periode_id === currentPeriode.id
+  const currentPeriodRABExists = rabs.some(rab => 
+    rab.periode_id === currentPeriode?.id
   );
 
   // Determine button state based on several conditions
@@ -111,79 +111,13 @@ const RABPage: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="w-full overflow-auto">
-            <div className="min-w-[800px]">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="py-3 px-4 text-left font-medium">Periode</th>
-                    <th className="py-3 px-4 text-left font-medium">Saldo Awal</th>
-                    <th className="py-3 px-4 text-left font-medium">Rencana Pemasukan</th>
-                    <th className="py-3 px-4 text-left font-medium">Rencana Pengeluaran</th>
-                    <th className="py-3 px-4 text-left font-medium">Status</th>
-                    <th className="py-3 px-4 text-left font-medium">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoading ? (
-                    <tr>
-                      <td colSpan={6} className="py-6 text-center text-muted-foreground">
-                        Memuat data...
-                      </td>
-                    </tr>
-                  ) : rabs.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-6 text-center text-muted-foreground">
-                        Belum ada data RAB
-                      </td>
-                    </tr>
-                  ) : (
-                    rabs.map((rab) => (
-                      <tr key={rab.id} className="border-b">
-                        <td className="py-3 px-4">
-                          {rab.periode?.tahun}-{rab.periode?.bulan.toString().padStart(2, '0')}
-                        </td>
-                        <td className="py-3 px-4">
-                          {new Intl.NumberFormat('id-ID', {
-                            style: 'currency',
-                            currency: 'IDR'
-                          }).format(rab.saldo_awal || 0)}
-                        </td>
-                        <td className="py-3 px-4">
-                          {new Intl.NumberFormat('id-ID', {
-                            style: 'currency',
-                            currency: 'IDR'
-                          }).format(rab.rencana_pemasukan || 0)}
-                        </td>
-                        <td className="py-3 px-4">
-                          {new Intl.NumberFormat('id-ID', {
-                            style: 'currency',
-                            currency: 'IDR'
-                          }).format(rab.rencana_pengeluaran || 0)}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            rab.status === DocumentStatus.DITERIMA
-                              ? "bg-green-100 text-green-800"
-                              : rab.status === DocumentStatus.REVISI
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-blue-100 text-blue-800"
-                          }`}>
-                            {rab.status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Button variant="outline" size="sm">
-                            Lihat
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </ScrollArea>
+          <div className="overflow-x-auto">
+            <RABTable 
+              rabs={rabs} 
+              isLoading={isLoading}
+              viewOnly
+            />
+          </div>
         </CardContent>
       </Card>
     </AdminPondokLayout>

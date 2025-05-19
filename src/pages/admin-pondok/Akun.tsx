@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { AdminPondokLayout } from "@/components/layout/AdminPondokLayout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -432,8 +433,10 @@ const AkunPage: React.FC = () => {
                               <SelectContent>
                                 <SelectItem value={PengurusJabatan.KETUA}>Ketua</SelectItem>
                                 <SelectItem value={PengurusJabatan.WAKIL_KETUA}>Wakil Ketua</SelectItem>
+                                <SelectItem value={PengurusJabatan.PINISEPUH}>Pinisepuh</SelectItem>
                                 <SelectItem value={PengurusJabatan.SEKRETARIS}>Sekretaris</SelectItem>
                                 <SelectItem value={PengurusJabatan.BENDAHARA}>Bendahara</SelectItem>
+                                <SelectItem value={PengurusJabatan.GURU}>Guru</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
