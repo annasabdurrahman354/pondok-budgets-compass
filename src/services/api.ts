@@ -60,20 +60,18 @@ export const updatePondok = async (pondokData: Partial<Pondok> & { id: string })
   return data as Pondok;
 };
 
-export const createPondok = async (pondokData: Omit<Pondok, 'id' | 'accepted_at' | 'pengurus'>): Promise<Pondok | null> => {
-  // Remove id from pondokData since it will be auto-generated
+export const createPondok = async (pondokData: Omit<Pondok, "accepted_at" | "id" | "pengurus">) => {
   const { data, error } = await supabase
     .from('pondok')
-    .insert(pondokData)
+    .insert({ 
+      ...pondokData,
+      id: crypto.randomUUID() // Generate a UUID for the new pondok
+    })
     .select()
     .single();
 
-  if (error) {
-    console.error('Error creating pondok:', error);
-    throw new Error(error.message);
-  }
-
-  return data as Pondok;
+  if (error) throw error;
+  return data;
 };
 
 export const verifyPondok = async (pondokId: string): Promise<boolean> => {

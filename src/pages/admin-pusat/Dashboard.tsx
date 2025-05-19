@@ -4,9 +4,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PeriodInfo } from "@/components/dashboard/PeriodInfo";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAllPeriode, fetchCurrentPeriode } from "@/services/api";
-import StatCard from "@/components/dashboard/StatCard";
+import { StatCard } from "@/components/dashboard/StatCard"; // Changed from default import to named import
 import { UserRole } from "@/types";
-import { BarChart, CalendarDays, School, User2, Users } from "lucide-react";
+import { BarChart, CalendarDays, School, User2, Users, FileText } from "lucide-react"; // Added FileText icon as replacement for ScrollText
 
 const AdminDashboard: React.FC = () => {
   // Fetch all periods
@@ -52,22 +52,22 @@ const AdminDashboard: React.FC = () => {
           <StatCard
             title="Total Pondok"
             value={totalPondok}
-            icon={School}
+            icon={<School className="h-5 w-5" />}
           />
           <StatCard
             title="Total Admin"
             value={totalAdmin}
-            icon={User2}
+            icon={<User2 className="h-5 w-5" />}
           />
           <StatCard
             title="Total RAB"
             value={50}
-            icon={ScrollText}
+            icon={<FileText className="h-5 w-5" />} // Changed from ScrollText to FileText
           />
           <StatCard
             title="Total LPJ"
             value={30}
-            icon={BarChart}
+            icon={<BarChart className="h-5 w-5" />}
           />
         </div>
 
