@@ -21,20 +21,29 @@ import { formatCurrency, formatPeriode, getStatusBadgeClass } from "@/lib/utils"
 import { FileText, CheckCircle, XCircle, ExternalLink } from "lucide-react";
 
 interface RABTableProps {
-  data: RAB[];
+  data?: RAB[];
+  rabs?: RAB[]; // Add this to handle the prop passed from RABPage
   title?: string;
   onView?: (rab: RAB) => void;
   onApprove?: (rab: RAB) => void;
   onRevision?: (rab: RAB) => void;
+  isLoading?: boolean;
+  viewOnly?: boolean;
 }
 
 export const RABTable: React.FC<RABTableProps> = ({
   data,
+  rabs, // Handle both prop names
   title = "Daftar RAB",
   onView,
   onApprove,
   onRevision,
+  isLoading = false,
+  viewOnly = false
 }) => {
+  // Use rabs prop if data is not provided, ensuring backward compatibility
+  const rabsList = data || rabs || [];
+  
   return (
     <Card>
       {title && (
@@ -43,7 +52,11 @@ export const RABTable: React.FC<RABTableProps> = ({
         </CardHeader>
       )}
       <CardContent>
-        {data.length === 0 ? (
+        {isLoading ? (
+          <div className="text-center py-6 text-muted-foreground">
+            Memuat data...
+          </div>
+        ) : rabsList.length === 0 ? (
           <div className="text-center py-6 text-muted-foreground">
             Belum ada data RAB
           </div>
@@ -63,7 +76,7 @@ export const RABTable: React.FC<RABTableProps> = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.map((rab) => (
+                {rabsList.map((rab) => (
                   <TableRow key={rab.pondok_id + rab.periode_id}>
                     <TableCell className="font-medium">
                       {rab.pondok?.nama || "Unknown"}
@@ -101,7 +114,7 @@ export const RABTable: React.FC<RABTableProps> = ({
                             <span className="sr-only">Lihat</span>
                           </Button>
                         )}
-                        {onApprove && rab.status === DocumentStatus.DIAJUKAN && (
+                        {onApprove && !viewOnly && rab.status === DocumentStatus.DIAJUKAN && (
                           <Button
                             size="sm"
                             variant="ghost"
@@ -112,7 +125,7 @@ export const RABTable: React.FC<RABTableProps> = ({
                             <span className="sr-only">Setujui</span>
                           </Button>
                         )}
-                        {onRevision && rab.status === DocumentStatus.DIAJUKAN && (
+                        {onRevision && !viewOnly && rab.status === DocumentStatus.DIAJUKAN && (
                           <Button
                             size="sm"
                             variant="ghost"
