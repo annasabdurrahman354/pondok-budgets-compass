@@ -1,9 +1,22 @@
-
 import React, { useState } from "react";
 import { AdminPusatLayout } from "@/components/layout/AdminPusatLayout";
-import { LPJTable } from "@/components/tables/LPJTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -11,132 +24,134 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DocumentStatus, LPJ } from "@/types";
-import { formatPeriode } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
-import { fetchAllPeriode, fetchLPJsByPeriode, getFileUrl } from "@/services/api";
-import { LPJReviewForm } from "@/components/review/LPJReviewForm";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { getStatusBadgeClass, formatCurrency } from "@/lib/utils";
-import { AlertTriangle, FileText } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { LPJ, DocumentStatus } from "@/types";
+import { formatCurrency } from "@/lib/utils";
+import { Eye, Plus, Search, File, XCircle } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  fetchAllLPJ,
+  approveLPJ,
+  rejectLPJ,
+  getFileUrl,
+} from "@/services/api";
+import { toast } from "sonner";
+import { LPJTable } from "@/components/tables/LPJTable";
+import { Link } from "react-router-dom";
 
 const LPJPage: React.FC = () => {
+  const queryClient = useQueryClient();
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState<DocumentStatus | "all">("all");
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [revisionDialogOpen, setRevisionDialogOpen] = useState(false);
   const [selectedLPJ, setSelectedLPJ] = useState<LPJ | null>(null);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
-  const [isReviseDialogOpen, setIsReviseDialogOpen] = useState(false);
-  
-  // Fetch periods
-  const { 
-    data: periods = [], 
-    isLoading: isLoadingPeriods,
-  } = useQuery({
-    queryKey: ['periods'],
-    queryFn: () => fetchAllPeriode(),
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+
+  const { data: lpjs = [], isLoading: isLoadingLPJs } = useQuery({
+    queryKey: ["lpjs"],
+    queryFn: fetchAllLPJ,
   });
 
-  const [selectedPeriode, setSelectedPeriode] = useState<string | null>(
-    periods.length > 0 ? periods[0]?.id : null
-  );
-
-  // Set selected period when periods are loaded
-  React.useEffect(() => {
-    if (periods.length > 0 && !selectedPeriode) {
-      setSelectedPeriode(periods[0].id);
+  const handleApprove = async (lpj: LPJ) => {
+    try {
+      await approveLPJ(lpj.id);
+      toast.success("LPJ berhasil disetujui");
+      queryClient.invalidateQueries({ queryKey: ["lpjs"] });
+    } catch (error) {
+      toast.error("Gagal menyetujui LPJ");
+      console.error(error);
     }
-  }, [periods, selectedPeriode]);
+  };
 
-  // Fetch LPJs
-  const {
-    data: lpjs = [],
-    isLoading: isLoadingLPJs,
-    refetch: refetchLPJs,
-  } = useQuery({
-    queryKey: ['lpjs', selectedPeriode],
-    queryFn: () => selectedPeriode ? fetchLPJsByPeriode(selectedPeriode) : Promise.resolve([]),
-    enabled: !!selectedPeriode,
-  });
+  const handleRevision = (lpj: LPJ) => {
+    setSelectedLPJ(lpj);
+    setRevisionDialogOpen(true);
+  };
 
-  // Filter LPJs based on search text and status
+  const handleSubmitRevision = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const message = formData.get("message") as string;
+    
+    if (selectedLPJ) {
+      try {
+        await rejectLPJ(selectedLPJ.id, message);
+        toast.success("LPJ berhasil ditolak dan memerlukan revisi");
+        setRevisionDialogOpen(false);
+        queryClient.invalidateQueries({ queryKey: ["lpjs"] });
+      } catch (error) {
+        toast.error("Gagal menolak LPJ");
+        console.error(error);
+      }
+    }
+  };
+
   const filteredLPJs = lpjs.filter(
-    (lpj) => {
-      const pondokNameMatch = lpj.pondok?.nama.toLowerCase().includes(searchText.toLowerCase()) || searchText === "";
-      const statusMatch = statusFilter === "all" || lpj.status === statusFilter;
-      return pondokNameMatch && statusMatch;
-    }
+    (lpj) =>
+      (searchText === "" ||
+        lpj.pondok?.nama.toLowerCase().includes(searchText.toLowerCase())) &&
+      (statusFilter === "all" || lpj.status === statusFilter)
   );
 
-  // Group LPJs by status
-  const diajukanLPJs = filteredLPJs.filter((lpj) => lpj.status === DocumentStatus.DIAJUKAN);
-  const diterimaLPJs = filteredLPJs.filter((lpj) => lpj.status === DocumentStatus.DITERIMA);
-  const revisiLPJs = filteredLPJs.filter((lpj) => lpj.status === DocumentStatus.REVISI);
-
-  const handleViewLPJ = (lpj: LPJ) => {
+  const handleViewDetail = async (lpj: LPJ) => {
     setSelectedLPJ(lpj);
-    setIsViewDialogOpen(true);
-  };
-
-  const handleApproveLPJ = (lpj: LPJ) => {
-    setSelectedLPJ(lpj);
-    setIsApproveDialogOpen(true);
-  };
-
-  const handleReviseLPJ = (lpj: LPJ) => {
-    setSelectedLPJ(lpj);
-    setIsReviseDialogOpen(true);
-  };
-  
-  const handleStatusUpdated = () => {
-    refetchLPJs();
-  };
-  
-  const getDocumentUrl = (lpj: LPJ) => {
-    if (!lpj.dokumen_path) return "";
-    return getFileUrl('bukti_lpj', lpj.dokumen_path);
+    try {
+      if (lpj.dokumen_path) {
+        const url = await getFileUrl(lpj.dokumen_path);
+        setFileUrl(url);
+      }
+      setDetailDialogOpen(true);
+    } catch (error) {
+      toast.error("Gagal mengambil detail LPJ");
+      console.error(error);
+    }
   };
 
   return (
-    <AdminPusatLayout title="Laporan Pertanggungjawaban (LPJ)">
-      <div className="mb-6 flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
-        <div className="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-3">
-          {isLoadingPeriods ? (
-            <Skeleton className="h-10 w-[180px]" />
-          ) : (
-            <Select
-              value={selectedPeriode || ""}
-              onValueChange={setSelectedPeriode}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Periode" />
-              </SelectTrigger>
-              <SelectContent>
-                {periods.map((period) => (
-                  <SelectItem key={period.id} value={period.id}>
-                    {formatPeriode(period.id)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
+    <AdminPusatLayout title="Manajemen LPJ">
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Cari LPJ..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className="pl-8 w-full sm:w-[300px]"
+            />
+          </div>
           <Select
             value={statusFilter}
-            onValueChange={(value) => setStatusFilter(value as DocumentStatus | "all")}
+            onValueChange={(value) =>
+              setStatusFilter(
+                value === "all" ? "all" : (value as DocumentStatus)
+              )
+            }
           >
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Status" />
+              <SelectValue placeholder="Semua Status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Semua Status</SelectItem>
@@ -146,209 +161,203 @@ const LPJPage: React.FC = () => {
             </SelectContent>
           </Select>
         </div>
-
-        <div className="flex items-center space-x-3">
-          <Input
-            placeholder="Cari pondok..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            className="max-w-xs"
-          />
-        </div>
+        <Button asChild>
+          <Link to="/admin-pusat/lpj/create">
+            <Plus className="mr-2 h-4 w-4" /> Tambah LPJ
+          </Link>
+        </Button>
       </div>
 
-      {isLoadingLPJs ? (
-        <div className="space-y-4">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-64 w-full" />
-        </div>
-      ) : (
-        <Tabs defaultValue="diajukan" className="w-full">
-          <TabsList className="mb-6 w-full justify-start">
-            <TabsTrigger value="diajukan">
-              Diajukan ({diajukanLPJs.length})
-            </TabsTrigger>
-            <TabsTrigger value="diterima">
-              Diterima ({diterimaLPJs.length})
-            </TabsTrigger>
-            <TabsTrigger value="revisi">
-              Revisi ({revisiLPJs.length})
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="diajukan" className="animate-fade-in">
-            <LPJTable
-              data={diajukanLPJs}
-              title="LPJ yang Sedang Diajukan"
-              onView={handleViewLPJ}
-              onApprove={handleApproveLPJ}
-              onRevision={handleReviseLPJ}
-            />
-          </TabsContent>
-
-          <TabsContent value="diterima" className="animate-fade-in">
-            <LPJTable
-              data={diterimaLPJs}
-              title="LPJ yang Telah Diterima"
-              onView={handleViewLPJ}
-            />
-          </TabsContent>
-
-          <TabsContent value="revisi" className="animate-fade-in">
-            <LPJTable
-              data={revisiLPJs}
-              title="LPJ yang Perlu Revisi"
-              onView={handleViewLPJ}
-            />
-          </TabsContent>
-        </Tabs>
-      )}
-      
-      {/* View LPJ Dialog */}
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-3xl">
+      {/* Detail Dialog */}
+      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>
-              Detail LPJ - {selectedLPJ?.pondok?.nama}
-            </DialogTitle>
-            <DialogDescription>
-              Periode: {selectedLPJ && formatPeriode(selectedLPJ.periode_id)} | 
-              Status: {selectedLPJ && (
-                <Badge className={selectedLPJ ? getStatusBadgeClass(selectedLPJ.status) : ""}>
-                  {selectedLPJ?.status === DocumentStatus.DIAJUKAN
-                    ? "Diajukan"
-                    : selectedLPJ?.status === DocumentStatus.DITERIMA
-                    ? "Diterima"
-                    : "Revisi"}
-                </Badge>
-              )}
-            </DialogDescription>
+            <DialogTitle>Detail LPJ</DialogTitle>
+            <DialogDescription>Informasi lengkap tentang LPJ</DialogDescription>
           </DialogHeader>
-          
           {selectedLPJ && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Saldo Awal</h3>
-                  <p className="text-lg">{formatCurrency(selectedLPJ.saldo_awal)}</p>
+                  <h3 className="text-lg font-medium mb-4">Informasi LPJ</h3>
+                  <dl className="space-y-3">
+                    <div>
+                      <dt className="text-sm font-medium text-muted-foreground">
+                        Pondok
+                      </dt>
+                      <dd>{selectedLPJ.pondok?.nama}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-muted-foreground">
+                        Periode
+                      </dt>
+                      <dd>
+                        {selectedLPJ.periode
+                          ? `${selectedLPJ.periode.tahun}-${String(
+                              selectedLPJ.periode.bulan
+                            ).padStart(2, "0")}`
+                          : "-"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-muted-foreground">
+                        Status
+                      </dt>
+                      <dd>
+                        {selectedLPJ.status === DocumentStatus.DIAJUKAN ? (
+                          <Badge variant="outline">Diajukan</Badge>
+                        ) : selectedLPJ.status === DocumentStatus.DITERIMA ? (
+                          <Badge className="bg-green-100 text-green-800 border-green-300">
+                            Diterima
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive">Revisi</Badge>
+                        )}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-muted-foreground">
+                        Tanggal Pengajuan
+                      </dt>
+                      <dd>
+                        {selectedLPJ.submitted_at
+                          ? new Date(
+                              selectedLPJ.submitted_at
+                            ).toLocaleDateString("id-ID")
+                          : "-"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-muted-foreground">
+                        Realisasi Pemasukan
+                      </dt>
+                      <dd>{formatCurrency(selectedLPJ.realisasi_pemasukan || 0)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-muted-foreground">
+                        Realisasi Pengeluaran
+                      </dt>
+                      <dd>
+                        {formatCurrency(selectedLPJ.realisasi_pengeluaran || 0)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-sm font-medium text-muted-foreground">
+                        Sisa Saldo
+                      </dt>
+                      <dd>{formatCurrency(selectedLPJ.sisa_saldo || 0)}</dd>
+                    </div>
+                  </dl>
                 </div>
+
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Tanggal Pengajuan</h3>
-                  <p className="text-lg">
-                    {selectedLPJ.submitted_at
-                      ? new Date(selectedLPJ.submitted_at).toLocaleDateString("id-ID")
-                      : "-"}
-                  </p>
+                  <h3 className="text-lg font-medium mb-4">Berkas LPJ</h3>
+                  {selectedLPJ.dokumen_path ? (
+                    <div className="flex items-center space-x-4">
+                      <File className="h-10 w-10 text-blue-500" />
+                      <div>
+                        <a
+                          href={fileUrl || "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium hover:underline"
+                        >
+                          Lihat Berkas
+                        </a>
+                        <p className="text-sm text-muted-foreground">
+                          Klik untuk membuka berkas LPJ
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center">
+                      <XCircle className="h-10 w-10 text-red-500 mr-4" />
+                      <div>
+                        <p className="font-medium">Berkas tidak tersedia</p>
+                        <p className="text-sm text-muted-foreground">
+                          Tidak ada berkas dilampirkan untuk LPJ ini.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Rencana Pemasukan</h3>
-                  <p className="text-lg">{formatCurrency(selectedLPJ.rencana_pemasukan)}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Realisasi Pemasukan</h3>
-                  <p className="text-lg">{formatCurrency(selectedLPJ.realisasi_pemasukan)}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Rencana Pengeluaran</h3>
-                  <p className="text-lg">{formatCurrency(selectedLPJ.rencana_pengeluaran)}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Realisasi Pengeluaran</h3>
-                  <p className="text-lg">{formatCurrency(selectedLPJ.realisasi_pengeluaran)}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Sisa Saldo</h3>
-                  <p className="text-lg font-bold">{formatCurrency(selectedLPJ.sisa_saldo)}</p>
-                </div>
-                
-                {selectedLPJ.accepted_at && (
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">Tanggal Disetujui</h3>
-                    <p className="text-lg">
-                      {new Date(selectedLPJ.accepted_at).toLocaleDateString("id-ID")}
-                    </p>
-                  </div>
-                )}
               </div>
-              
-              {selectedLPJ.dokumen_path && (
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Dokumen LPJ</h3>
-                  <a 
-                    href={getDocumentUrl(selectedLPJ)} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-primary hover:underline"
-                  >
-                    <FileText className="h-4 w-4" />
-                    Lihat Dokumen LPJ
-                  </a>
-                </div>
-              )}
-              
-              {selectedLPJ.pesan_revisi && (
-                <Alert className="mt-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Pesan Revisi</AlertTitle>
-                  <AlertDescription>
-                    {selectedLPJ.pesan_revisi}
-                  </AlertDescription>
-                </Alert>
-              )}
-              
-              <div className="flex justify-end gap-3">
+
+              <div className="flex justify-end space-x-2">
                 {selectedLPJ.status === DocumentStatus.DIAJUKAN && (
                   <>
                     <Button
-                      variant="destructive"
-                      onClick={() => {
-                        setIsViewDialogOpen(false);
-                        handleReviseLPJ(selectedLPJ);
-                      }}
-                    >
-                      Minta Revisi
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setIsViewDialogOpen(false);
-                        handleApproveLPJ(selectedLPJ);
-                      }}
+                      variant="ghost"
+                      className="text-green-500 hover:text-green-700"
+                      onClick={() => handleApprove(selectedLPJ)}
                     >
                       Setujui
                     </Button>
+                    <Button
+                      variant="ghost"
+                      className="text-red-500 hover:text-red-700"
+                      onClick={() => handleRevision(selectedLPJ)}
+                    >
+                      Revisi
+                    </Button>
                   </>
                 )}
-                <Button
-                  variant="outline"
-                  onClick={() => setIsViewDialogOpen(false)}
-                >
-                  Tutup
-                </Button>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
-      
-      {/* LPJ Review Forms */}
-      {selectedLPJ && (
-        <>
-          <LPJReviewForm
-            lpj={selectedLPJ}
-            isOpen={isApproveDialogOpen}
-            onClose={() => setIsApproveDialogOpen(false)}
-            onStatusUpdated={handleStatusUpdated}
-            action="approve"
-          />
-          <LPJReviewForm
-            lpj={selectedLPJ}
-            isOpen={isReviseDialogOpen}
-            onClose={() => setIsReviseDialogOpen(false)}
-            onStatusUpdated={handleStatusUpdated}
-            action="revise"
-          />
-        </>
-      )}
+
+      {/* Revision Dialog */}
+      <Dialog open={revisionDialogOpen} onOpenChange={setRevisionDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Revisi LPJ</DialogTitle>
+            <DialogDescription>
+              Berikan pesan mengapa LPJ ini perlu direvisi.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmitRevision} className="space-y-4">
+            <div>
+              <Label htmlFor="message">Pesan Revisi</Label>
+              <Input
+                id="message"
+                name="message"
+                required
+                placeholder="Jelaskan mengapa LPJ ini perlu direvisi..."
+              />
+            </div>
+            <DialogFooter>
+              <Button type="submit" variant="destructive">
+                Kirim Revisi
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Daftar LPJ</CardTitle>
+          <CardDescription>
+            Kelola dan pantau Laporan Pertanggungjawaban (LPJ)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoadingLPJs ? (
+            <div className="flex justify-center p-4">
+              <p>Memuat data...</p>
+            </div>
+          ) : (
+            <LPJTable
+              lpjs={filteredLPJs}
+              onView={handleViewDetail}
+              onApprove={handleApprove}
+              onRevision={handleRevision}
+            />
+          )}
+        </CardContent>
+      </Card>
     </AdminPusatLayout>
   );
 };

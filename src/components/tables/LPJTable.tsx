@@ -19,12 +19,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 interface LPJTableProps {
   data?: LPJ[];
   lpjs?: LPJ[];
-  title?: string; // Optional title prop
+  title?: string;
   isLoading?: boolean;
-  viewOnly?: boolean; // Set to true to only show view button
+  viewOnly?: boolean;
   onSelect?: (lpj: LPJ) => void;
   onApprove?: (lpj: LPJ) => void;
   onRevision?: (lpj: LPJ) => void;
+  // Adding onView prop for backward compatibility
+  onView?: (lpj: LPJ) => void;
 }
 
 export const LPJTable: React.FC<LPJTableProps> = ({
@@ -36,6 +38,7 @@ export const LPJTable: React.FC<LPJTableProps> = ({
   onSelect,
   onApprove,
   onRevision,
+  onView,
 }) => {
   const navigate = useNavigate();
   
@@ -58,31 +61,42 @@ export const LPJTable: React.FC<LPJTableProps> = ({
     );
   }
 
+  // Handle view action based on different props
+  const handleViewAction = (lpj: LPJ) => {
+    if (viewOnly) {
+      navigate(`/admin-pondok/lpj/${lpj.id}`);
+    } else if (onView) {
+      onView(lpj);
+    } else if (onSelect) {
+      onSelect(lpj);
+    }
+  };
+
   return (
-    <ScrollArea className="w-full">
+    <div className="w-full">
       {title && <h3 className="text-lg font-medium mb-3">{title}</h3>}
-      <div className="w-full overflow-x-auto">
+      <div className="w-full overflow-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Periode</TableHead>
-              <TableHead>Pondok</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Tanggal Pengajuan</TableHead>
-              <TableHead>Realisasi Pemasukan</TableHead>
-              <TableHead>Realisasi Pengeluaran</TableHead>
-              <TableHead>Sisa Saldo</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
+              <TableHead className="whitespace-nowrap">Periode</TableHead>
+              <TableHead className="whitespace-nowrap">Pondok</TableHead>
+              <TableHead className="whitespace-nowrap">Status</TableHead>
+              <TableHead className="whitespace-nowrap">Tanggal Pengajuan</TableHead>
+              <TableHead className="whitespace-nowrap">Realisasi Pemasukan</TableHead>
+              <TableHead className="whitespace-nowrap">Realisasi Pengeluaran</TableHead>
+              <TableHead className="whitespace-nowrap">Sisa Saldo</TableHead>
+              <TableHead className="whitespace-nowrap text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {items.map((lpj) => (
               <TableRow key={lpj.id}>
-                <TableCell>
+                <TableCell className="whitespace-nowrap">
                   {lpj.periode ? `${lpj.periode.tahun}-${String(lpj.periode.bulan).padStart(2, '0')}` : "-"}
                 </TableCell>
-                <TableCell>{lpj.pondok?.nama || "-"}</TableCell>
-                <TableCell>
+                <TableCell className="whitespace-nowrap">{lpj.pondok?.nama || "-"}</TableCell>
+                <TableCell className="whitespace-nowrap">
                   {lpj.status === DocumentStatus.DIAJUKAN ? (
                     <Badge variant="outline">Diajukan</Badge>
                   ) : lpj.status === DocumentStatus.DITERIMA ? (
@@ -93,19 +107,19 @@ export const LPJTable: React.FC<LPJTableProps> = ({
                     <Badge variant="destructive">Revisi</Badge>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell className="whitespace-nowrap">
                   {lpj.submitted_at
                     ? new Date(lpj.submitted_at).toLocaleDateString("id-ID")
                     : "-"}
                 </TableCell>
-                <TableCell>{formatCurrency(lpj.realisasi_pemasukan || 0)}</TableCell>
-                <TableCell>{formatCurrency(lpj.realisasi_pengeluaran || 0)}</TableCell>
-                <TableCell>{formatCurrency(lpj.sisa_saldo || 0)}</TableCell>
-                <TableCell className="text-right">
+                <TableCell className="whitespace-nowrap">{formatCurrency(lpj.realisasi_pemasukan || 0)}</TableCell>
+                <TableCell className="whitespace-nowrap">{formatCurrency(lpj.realisasi_pengeluaran || 0)}</TableCell>
+                <TableCell className="whitespace-nowrap">{formatCurrency(lpj.sisa_saldo || 0)}</TableCell>
+                <TableCell className="whitespace-nowrap text-right">
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => (viewOnly ? navigate(`/admin-pondok/lpj/${lpj.id}`) : onSelect?.(lpj))}
+                    onClick={() => handleViewAction(lpj)}
                   >
                     <Eye className="h-4 w-4 mr-1" /> Detail
                   </Button>
@@ -115,6 +129,6 @@ export const LPJTable: React.FC<LPJTableProps> = ({
           </TableBody>
         </Table>
       </div>
-    </ScrollArea>
+    </div>
   );
 };

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { AdminPusatLayout } from "@/components/layout/AdminPusatLayout";
 import {
@@ -151,9 +150,16 @@ const PondokEditPage: React.FC = () => {
 
   // Update pondok mutation
   const updatePondokMutation = useMutation({
-    mutationFn: (data: any) => {
-      if (!id) throw new Error("ID not found");
-      return updatePondok({ ...data, id });
+    mutationFn: async (data: FormData) => {
+      const pondokData = {
+        nama: data.get("nama") as string,
+        jenis: data.get("jenis") as PondokJenis,
+        nomor_telepon: data.get("nomor_telepon") as string,
+        alamat: data.get("alamat") as string,
+        kode_pos: data.get("kode_pos") as string,
+      };
+
+      return updatePondok(pondokId as string, pondokData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pondok'] });
@@ -182,14 +188,8 @@ const PondokEditPage: React.FC = () => {
 
   // Add pengurus mutation
   const addPengurusMutation = useMutation({
-    mutationFn: (data: PengurusFormData) => {
-      if (!id) throw new Error("ID not found");
-      return addPengurus({
-        pondok_id: id,
-        nama: data.nama,
-        jabatan: data.jabatan,
-        nomor_telepon: data.nomor_telepon
-      });
+    mutationFn: async (data: Omit<Pengurus, "id">) => {
+      return addPengurus(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pondok'] });
@@ -207,15 +207,8 @@ const PondokEditPage: React.FC = () => {
 
   // Update pengurus mutation
   const updatePengurusMutation = useMutation({
-    mutationFn: (data: PengurusFormData) => {
-      if (!id || !data.id) throw new Error("ID not found");
-      return updatePengurus({
-        id: data.id,
-        pondok_id: id,
-        nama: data.nama,
-        jabatan: data.jabatan,
-        nomor_telepon: data.nomor_telepon
-      });
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Pengurus> }) => {
+      return updatePengurus(id, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pondok'] });
@@ -228,10 +221,7 @@ const PondokEditPage: React.FC = () => {
 
   // Delete pengurus mutation
   const deletePengurusMutation = useMutation({
-    mutationFn: (pengurusId: string) => {
-      if (!id) throw new Error("ID not found");
-      return deletePengurus(pengurusId, id);
-    },
+    mutationFn: (id: string) => deletePengurus(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pondok'] });
       toast.success("Pengurus berhasil dihapus");

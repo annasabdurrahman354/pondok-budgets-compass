@@ -19,12 +19,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 interface RABTableProps {
   data?: RAB[];
   rabs?: RAB[];
-  title?: string; // Optional title prop
+  title?: string;
   isLoading?: boolean;
-  viewOnly?: boolean; // Set to true to only show view button
+  viewOnly?: boolean;
   onSelect?: (rab: RAB) => void;
   onApprove?: (rab: RAB) => void;
   onRevision?: (rab: RAB) => void;
+  // Adding onView prop for backward compatibility
+  onView?: (rab: RAB) => void;
 }
 
 export const RABTable: React.FC<RABTableProps> = ({
@@ -36,6 +38,7 @@ export const RABTable: React.FC<RABTableProps> = ({
   onSelect,
   onApprove,
   onRevision,
+  onView,
 }) => {
   const navigate = useNavigate();
   
@@ -58,31 +61,42 @@ export const RABTable: React.FC<RABTableProps> = ({
     );
   }
 
+  // Handle view action based on different props
+  const handleViewAction = (rab: RAB) => {
+    if (viewOnly) {
+      navigate(`/admin-pondok/rab/${rab.id}`);
+    } else if (onView) {
+      onView(rab);
+    } else if (onSelect) {
+      onSelect(rab);
+    }
+  };
+
   return (
-    <ScrollArea className="w-full">
+    <div className="w-full">
       {title && <h3 className="text-lg font-medium mb-3">{title}</h3>}
-      <div className="w-full overflow-x-auto">
+      <div className="w-full overflow-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Periode</TableHead>
-              <TableHead>Pondok</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Tanggal Pengajuan</TableHead>
-              <TableHead>Saldo Awal</TableHead>
-              <TableHead>Rencana Pemasukan</TableHead>
-              <TableHead>Rencana Pengeluaran</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
+              <TableHead className="whitespace-nowrap">Periode</TableHead>
+              <TableHead className="whitespace-nowrap">Pondok</TableHead>
+              <TableHead className="whitespace-nowrap">Status</TableHead>
+              <TableHead className="whitespace-nowrap">Tanggal Pengajuan</TableHead>
+              <TableHead className="whitespace-nowrap">Saldo Awal</TableHead>
+              <TableHead className="whitespace-nowrap">Rencana Pemasukan</TableHead>
+              <TableHead className="whitespace-nowrap">Rencana Pengeluaran</TableHead>
+              <TableHead className="whitespace-nowrap text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {items.map((rab) => (
               <TableRow key={rab.id}>
-                <TableCell>
+                <TableCell className="whitespace-nowrap">
                   {rab.periode ? `${rab.periode.tahun}-${String(rab.periode.bulan).padStart(2, '0')}` : "-"}
                 </TableCell>
-                <TableCell>{rab.pondok?.nama || "-"}</TableCell>
-                <TableCell>
+                <TableCell className="whitespace-nowrap">{rab.pondok?.nama || "-"}</TableCell>
+                <TableCell className="whitespace-nowrap">
                   {rab.status === DocumentStatus.DIAJUKAN ? (
                     <Badge variant="outline">Diajukan</Badge>
                   ) : rab.status === DocumentStatus.DITERIMA ? (
@@ -93,19 +107,19 @@ export const RABTable: React.FC<RABTableProps> = ({
                     <Badge variant="destructive">Revisi</Badge>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell className="whitespace-nowrap">
                   {rab.submitted_at
                     ? new Date(rab.submitted_at).toLocaleDateString("id-ID")
                     : "-"}
                 </TableCell>
-                <TableCell>{formatCurrency(rab.saldo_awal || 0)}</TableCell>
-                <TableCell>{formatCurrency(rab.rencana_pemasukan || 0)}</TableCell>
-                <TableCell>{formatCurrency(rab.rencana_pengeluaran || 0)}</TableCell>
-                <TableCell className="text-right">
+                <TableCell className="whitespace-nowrap">{formatCurrency(rab.saldo_awal || 0)}</TableCell>
+                <TableCell className="whitespace-nowrap">{formatCurrency(rab.rencana_pemasukan || 0)}</TableCell>
+                <TableCell className="whitespace-nowrap">{formatCurrency(rab.rencana_pengeluaran || 0)}</TableCell>
+                <TableCell className="whitespace-nowrap text-right">
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => (viewOnly ? navigate(`/admin-pondok/rab/${rab.id}`) : onSelect?.(rab))}
+                    onClick={() => handleViewAction(rab)}
                   >
                     <Eye className="h-4 w-4 mr-1" /> Detail
                   </Button>
@@ -115,6 +129,6 @@ export const RABTable: React.FC<RABTableProps> = ({
           </TableBody>
         </Table>
       </div>
-    </ScrollArea>
+    </div>
   );
 };

@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthLayout } from "./AuthLayout";
@@ -10,8 +10,11 @@ import {
   BookOpen,
   Calendar,
   Users,
-  LogOut
+  LogOut,
+  Menu,
+  X
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -35,17 +38,33 @@ export const AdminPusatLayout: React.FC<AdminPusatLayoutProps> = ({
   children,
   title = "Dashboard",
 }) => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
     <AuthLayout requiredRole={UserRole.ADMIN_PUSAT}>
       <SidebarProvider>
         <div className="min-h-screen flex w-full">
-          <AdminSidebar />
-          <div className="flex-1 min-h-screen">
-            <main className="page-container">
-              <div className="page-header">
-                <h1 className="page-title">{title}</h1>
+          <div className="md:hidden fixed top-4 left-4 z-50">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="bg-white/80 backdrop-blur-sm"
+            >
+              {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+            </Button>
+          </div>
+
+          <div className={`${mobileMenuOpen ? 'block' : 'hidden'} md:block`}>
+            <AdminSidebar />
+          </div>
+          
+          <div className="flex-1 min-h-screen overflow-x-hidden">
+            <main className="page-container p-4 md:p-6">
+              <div className="page-header mb-6">
+                <h1 className="page-title text-2xl font-bold">{title}</h1>
               </div>
-              <div className="animate-fade-in">{children}</div>
+              <div className="animate-fade-in overflow-x-auto">{children}</div>
             </main>
           </div>
         </div>
@@ -58,8 +77,19 @@ const AdminSidebar: React.FC = () => {
   const { logout, user } = useAuth();
   const location = useLocation();
 
+  // Helper function to check if a menu item is active
+  const isActive = (path: string) => {
+    if (path === "/admin-pusat/dashboard" && location.pathname === "/admin-pusat/dashboard") {
+      return true;
+    }
+    if (path !== "/admin-pusat/dashboard" && location.pathname.startsWith(path)) {
+      return true;
+    }
+    return false;
+  };
+
   return (
-    <Sidebar>
+    <Sidebar className="z-40 h-screen">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
@@ -76,7 +106,10 @@ const AdminSidebar: React.FC = () => {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild className={location.pathname === "/admin-pusat/dashboard" ? "bg-secondary/20" : ""}>
+                <SidebarMenuButton 
+                  asChild 
+                  className={isActive("/admin-pusat/dashboard") ? "bg-secondary/50 font-medium" : ""}
+                >
                   <Link to="/admin-pusat/dashboard">
                     <Home className="h-4 w-4" />
                     <span>Dashboard</span>
@@ -84,7 +117,10 @@ const AdminSidebar: React.FC = () => {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild className={location.pathname === "/admin-pusat/rab" ? "bg-secondary/20" : ""}>
+                <SidebarMenuButton 
+                  asChild 
+                  className={isActive("/admin-pusat/rab") ? "bg-secondary/50 font-medium" : ""}
+                >
                   <Link to="/admin-pusat/rab">
                     <FileText className="h-4 w-4" />
                     <span>RAB</span>
@@ -92,7 +128,10 @@ const AdminSidebar: React.FC = () => {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild className={location.pathname === "/admin-pusat/lpj" ? "bg-secondary/20" : ""}>
+                <SidebarMenuButton 
+                  asChild 
+                  className={isActive("/admin-pusat/lpj") ? "bg-secondary/50 font-medium" : ""}
+                >
                   <Link to="/admin-pusat/lpj">
                     <BookOpen className="h-4 w-4" />
                     <span>LPJ</span>
@@ -100,7 +139,10 @@ const AdminSidebar: React.FC = () => {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild className={location.pathname === "/admin-pusat/periode" ? "bg-secondary/20" : ""}>
+                <SidebarMenuButton 
+                  asChild 
+                  className={isActive("/admin-pusat/periode") ? "bg-secondary/50 font-medium" : ""}
+                >
                   <Link to="/admin-pusat/periode">
                     <Calendar className="h-4 w-4" />
                     <span>Periode</span>
@@ -108,7 +150,10 @@ const AdminSidebar: React.FC = () => {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild className={location.pathname === "/admin-pusat/pondok" ? "bg-secondary/20" : ""}>
+                <SidebarMenuButton 
+                  asChild 
+                  className={isActive("/admin-pusat/pondok") ? "bg-secondary/50 font-medium" : ""}
+                >
                   <Link to="/admin-pusat/pondok">
                     <Users className="h-4 w-4" />
                     <span>Pondok</span>
