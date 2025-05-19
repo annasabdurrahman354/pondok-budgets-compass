@@ -113,7 +113,7 @@ const RABPage: React.FC = () => {
         <CardContent>
           <div className="overflow-x-auto">
             <RABTable 
-              rabs={rabs} 
+              data={rabs}
               isLoading={isLoading}
               viewOnly
             />
