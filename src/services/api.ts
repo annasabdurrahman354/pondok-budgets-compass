@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { DocumentStatus, LPJ, Periode, Pondok, RAB } from "@/types";
 
@@ -281,7 +282,8 @@ export const updateLPJStatus = async (
 // File upload functions
 export const uploadRABFile = async (file: File, pondokId: string, periodeId: string): Promise<string | null> => {
   const fileExt = file.name.split('.').pop();
-  const fileName = `rab-${periodeId}-${pondokId}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+  const randomString = Math.random().toString(36).substring(2, 6);
+  const fileName = `rab-${periodeId}-${pondokId.substring(0, 8)}-${randomString}.${fileExt}`;
   const filePath = `${fileName}`;
 
   const { error: uploadError } = await supabase
@@ -299,7 +301,8 @@ export const uploadRABFile = async (file: File, pondokId: string, periodeId: str
 
 export const uploadLPJFile = async (file: File, pondokId: string, periodeId: string): Promise<string | null> => {
   const fileExt = file.name.split('.').pop();
-  const fileName = `lpj-${periodeId}-${pondokId}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+  const randomString = Math.random().toString(36).substring(2, 6);
+  const fileName = `lpj-${periodeId}-${pondokId.substring(0, 8)}-${randomString}.${fileExt}`;
   const filePath = `${fileName}`;
 
   const { error: uploadError } = await supabase

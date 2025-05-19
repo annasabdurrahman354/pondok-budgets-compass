@@ -4,7 +4,8 @@ import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthLayout } from "./AuthLayout";
 import { UserRole } from "@/types";
-import { Home, FileText, BookOpen, User } from "lucide-react";
+import { Home, FileText, BookOpen, User, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface AdminPondokLayoutProps {
   children: React.ReactNode;
@@ -15,12 +16,23 @@ export const AdminPondokLayout: React.FC<AdminPondokLayoutProps> = ({
   children,
   title = "Dashboard",
 }) => {
+  const { logout } = useAuth();
+  
   return (
     <AuthLayout requiredRole={UserRole.ADMIN_PONDOK}>
       <div className="min-h-screen pb-safe">
         <main className="page-container">
-          <div className="page-header">
+          <div className="page-header flex justify-between items-center">
             <h1 className="page-title">{title}</h1>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={logout}
+              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Keluar
+            </Button>
           </div>
           <div className="animate-fade-in pb-24">{children}</div>
         </main>

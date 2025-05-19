@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,9 +13,12 @@ import AdminPusatRAB from "./pages/admin-pusat/RAB";
 import AdminPusatLPJ from "./pages/admin-pusat/LPJ";
 import AdminPusatPeriode from "./pages/admin-pusat/Periode";
 import AdminPusatPondok from "./pages/admin-pusat/Pondok";
+import AdminPusatPondokCreate from "./pages/admin-pusat/PondokCreate";
 import AdminPondokDashboard from "./pages/admin-pondok/Dashboard";
 import AdminPondokRAB from "./pages/admin-pondok/RAB";
+import AdminPondokCreateRAB from "./pages/admin-pondok/CreateRAB";
 import AdminPondokLPJ from "./pages/admin-pondok/LPJ";
+import AdminPondokCreateLPJ from "./pages/admin-pondok/CreateLPJ";
 import AdminPondokAkun from "./pages/admin-pondok/Akun";
 import { toast } from "sonner";
 import { useEffect } from "react";
@@ -72,11 +76,14 @@ const App = () => (
             <Route path="/admin-pusat/lpj" element={<AdminPusatLPJ />} />
             <Route path="/admin-pusat/periode" element={<AdminPusatPeriode />} />
             <Route path="/admin-pusat/pondok" element={<AdminPusatPondok />} />
+            <Route path="/admin-pusat/pondok/create" element={<AdminPusatPondokCreate />} />
             
             {/* Admin Pondok routes */}
             <Route path="/admin-pondok/dashboard" element={<AdminPondokDashboard />} />
             <Route path="/admin-pondok/rab" element={<AdminPondokRAB />} />
+            <Route path="/admin-pondok/rab/create" element={<AdminPondokCreateRAB />} />
             <Route path="/admin-pondok/lpj" element={<AdminPondokLPJ />} />
+            <Route path="/admin-pondok/lpj/create" element={<AdminPondokCreateLPJ />} />
             <Route path="/admin-pondok/akun" element={<AdminPondokAkun />} />
             
             {/* Catch-all route for 404 */}

@@ -80,6 +80,14 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Fix: Add wrapper function to match expected signature
+  const handleRABRevisionWrapper = (rab: RAB) => {
+    const pesanRevisi = prompt("Masukkan pesan revisi:");
+    if (pesanRevisi) {
+      handleRABRevision(rab, pesanRevisi);
+    }
+  };
+
   const handleRABRevision = async (rab: RAB, pesanRevisi: string) => {
     if (!rab.id) return;
     
@@ -96,6 +104,14 @@ const Dashboard: React.FC = () => {
     const result = await updateLPJStatus(lpj.id, DocumentStatus.DITERIMA);
     if (result) {
       toast.success("LPJ berhasil disetujui");
+    }
+  };
+
+  // Fix: Add wrapper function to match expected signature
+  const handleLPJRevisionWrapper = (lpj: LPJ) => {
+    const pesanRevisi = prompt("Masukkan pesan revisi:");
+    if (pesanRevisi) {
+      handleLPJRevision(lpj, pesanRevisi);
     }
   };
 
@@ -218,7 +234,7 @@ const Dashboard: React.FC = () => {
               title={`RAB Periode ${formatPeriode(currentPeriode.id)}`} 
               onView={(rab) => console.log("View RAB", rab)}
               onApprove={handleRABApprove}
-              onRevision={handleRABRevision}
+              onRevision={handleRABRevisionWrapper}
             />
           )}
         </TabsContent>
@@ -233,7 +249,7 @@ const Dashboard: React.FC = () => {
               title={`LPJ Periode ${formatPeriode(currentPeriode.id)}`} 
               onView={(lpj) => console.log("View LPJ", lpj)}
               onApprove={handleLPJApprove}
-              onRevision={handleLPJRevision}
+              onRevision={handleLPJRevisionWrapper}
             />
           )}
         </TabsContent>
