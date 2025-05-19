@@ -1,4 +1,3 @@
-
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { DocumentStatus, PengurusJabatan, PondokJenis } from "@/types";
@@ -70,14 +69,12 @@ export function getPengurusJabatanLabel(jabatan: PengurusJabatan): string {
       return "Ketua";
     case PengurusJabatan.WAKIL_KETUA:
       return "Wakil Ketua";
-    case PengurusJabatan.PINISEPUH:
-      return "Pinisepuh";
     case PengurusJabatan.SEKRETARIS:
       return "Sekretaris";
     case PengurusJabatan.BENDAHARA:
       return "Bendahara";
-    case PengurusJabatan.GURU:
-      return "Guru";
+    case PengurusJabatan.ANGGOTA:
+      return "Anggota";
     default:
       return "Unknown";
   }

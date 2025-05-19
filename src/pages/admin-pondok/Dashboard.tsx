@@ -67,7 +67,7 @@ const PondokDashboard: React.FC = () => {
 
   if (isLoading) {
     return (
-      <AdminPondokLayout>
+      <AdminPondokLayout title="Dashboard">
         <div className="flex justify-center items-center h-64">
           <p>Memuat data...</p>
         </div>
@@ -77,7 +77,7 @@ const PondokDashboard: React.FC = () => {
 
   if (!currentPeriode) {
     return (
-      <AdminPondokLayout>
+      <AdminPondokLayout title="Dashboard">
         <div className="flex flex-col items-center justify-center h-64 space-y-4">
           <p className="text-lg">Tidak ada periode aktif saat ini</p>
           <p className="text-muted-foreground">Silakan hubungi admin pusat</p>
@@ -267,7 +267,7 @@ const PondokDashboard: React.FC = () => {
   );
 
   return (
-    <AdminPondokLayout>
+    <AdminPondokLayout title="Dashboard">
       <div className="space-y-6">
         {!isVerified && (
           <Alert variant="destructive" className="mb-6">

@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { AdminPusatLayout } from "@/components/layout/AdminPusatLayout";
 import {
@@ -20,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PondokJenis, PengurusJabatan } from "@/types";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createPondok, createAdminPondok } from "@/services/api";
@@ -28,6 +27,7 @@ import { toast } from "sonner";
 import { getPondokJenisLabel } from "@/lib/utils";
 import { PengurusForm } from "@/components/pondok/PengurusForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client"; 
 
 interface PengurusFormData {
   nama: string;
@@ -109,7 +109,8 @@ const PondokCreatePage: React.FC = () => {
         kode_pos: data.kode_pos,
         provinsi_id: data.provinsi_id,
         kota_id: data.kota_id,
-        daerah_sambung_id: data.daerah_sambung_id
+        daerah_sambung_id: data.daerah_sambung_id,
+        updated_at: new Date().toISOString() // Add the missing updated_at field
       });
       
       if (!pondokData) throw new Error("Gagal membuat data pondok");

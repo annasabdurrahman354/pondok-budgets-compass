@@ -61,12 +61,10 @@ export const updatePondok = async (pondokData: Partial<Pondok> & { id: string })
 };
 
 export const createPondok = async (pondokData: Omit<Pondok, 'id' | 'accepted_at' | 'pengurus'>): Promise<Pondok | null> => {
+  // Remove id from pondokData since it will be auto-generated
   const { data, error } = await supabase
     .from('pondok')
-    .insert({
-      ...pondokData,
-      updated_at: new Date().toISOString()
-    })
+    .insert(pondokData)
     .select()
     .single();
 

@@ -1,10 +1,9 @@
-
 import { ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { useMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Home, LogOut, Menu, ScrollText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,10 +16,10 @@ interface AdminPondokLayoutProps {
 }
 
 export const AdminPondokLayout = ({ children, title }: AdminPondokLayoutProps) => {
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
-  const { setUser } = useAuth();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   
   const isActive = (path: string) => {
@@ -30,7 +29,6 @@ export const AdminPondokLayout = ({ children, title }: AdminPondokLayoutProps) =
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
-      setUser(null);
       toast.success("Berhasil logout");
       navigate("/login");
     } catch (error) {
