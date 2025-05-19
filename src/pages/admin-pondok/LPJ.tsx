@@ -137,7 +137,7 @@ const LPJPage: React.FC = () => {
         <CardContent>
           <div className="overflow-x-auto">
             <LPJTable 
-              lpjs={lpjs} 
+              data={lpjs}
               isLoading={isLoading}
               viewOnly
             />

@@ -21,20 +21,29 @@ import { formatCurrency, formatPeriode, getStatusBadgeClass } from "@/lib/utils"
 import { FileText, CheckCircle, XCircle, ExternalLink } from "lucide-react";
 
 interface LPJTableProps {
-  data: LPJ[];
+  data?: LPJ[];
+  lpjs?: LPJ[]; // Add this to handle the prop passed from LPJPage
   title?: string;
   onView?: (lpj: LPJ) => void;
   onApprove?: (lpj: LPJ) => void;
   onRevision?: (lpj: LPJ) => void;
+  isLoading?: boolean;
+  viewOnly?: boolean;
 }
 
 export const LPJTable: React.FC<LPJTableProps> = ({
   data,
+  lpjs, // Handle both prop names
   title = "Daftar LPJ",
   onView,
   onApprove,
   onRevision,
+  isLoading = false,
+  viewOnly = false
 }) => {
+  // Use lpjs prop if data is not provided, ensuring backward compatibility
+  const lpjsList = data || lpjs || [];
+  
   return (
     <Card>
       {title && (
@@ -43,7 +52,11 @@ export const LPJTable: React.FC<LPJTableProps> = ({
         </CardHeader>
       )}
       <CardContent>
-        {data.length === 0 ? (
+        {isLoading ? (
+          <div className="text-center py-6 text-muted-foreground">
+            Memuat data...
+          </div>
+        ) : lpjsList.length === 0 ? (
           <div className="text-center py-6 text-muted-foreground">
             Belum ada data LPJ
           </div>
@@ -63,7 +76,7 @@ export const LPJTable: React.FC<LPJTableProps> = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.map((lpj) => (
+                {lpjsList.map((lpj) => (
                   <TableRow key={lpj.pondok_id + lpj.periode_id}>
                     <TableCell className="font-medium">
                       {lpj.pondok?.nama || "Unknown"}
@@ -95,7 +108,7 @@ export const LPJTable: React.FC<LPJTableProps> = ({
                             <span className="sr-only">Lihat</span>
                           </Button>
                         )}
-                        {onApprove && lpj.status === DocumentStatus.DIAJUKAN && (
+                        {onApprove && !viewOnly && lpj.status === DocumentStatus.DIAJUKAN && (
                           <Button
                             size="sm"
                             variant="ghost"
@@ -106,7 +119,7 @@ export const LPJTable: React.FC<LPJTableProps> = ({
                             <span className="sr-only">Setujui</span>
                           </Button>
                         )}
-                        {onRevision && lpj.status === DocumentStatus.DIAJUKAN && (
+                        {onRevision && !viewOnly && lpj.status === DocumentStatus.DIAJUKAN && (
                           <Button
                             size="sm"
                             variant="ghost"

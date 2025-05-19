@@ -74,6 +74,8 @@ const PondokCreatePage: React.FC = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [formData, setFormData] = useState<PondokFormData>(defaultPondokForm());
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   // Create pondok mutation
   const createPondokMutation = useMutation({
@@ -157,23 +159,37 @@ const PondokCreatePage: React.FC = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    setError("");
     
-    // Validation
-    if (!formData.nama.trim()) {
-      toast.error("Nama pondok tidak boleh kosong");
-      return;
-    }
-    
-    for (const pengurus of formData.pengurus) {
-      if (!pengurus.nama.trim()) {
-        toast.error("Nama pengurus tidak boleh kosong");
-        return;
+    try {
+      // Create the pondok
+      const pondokData = {
+        nama: formData.nama,
+        jenis: formData.jenis,
+        nomor_telepon: formData.nomor_telepon,
+        alamat: formData.alamat,
+        kode_pos: formData.kode_pos,
+        provinsi_id: formData.provinsi_id,
+        kota_id: formData.kota_id,
+        daerah_sambung_id: formData.daerah_sambung_id,
+        updated_at: new Date().toISOString() // Add this field
+      };
+      
+      const result = await createPondok(pondokData);
+      
+      if (result) {
+        toast.success(`Pondok ${formData.nama} berhasil ditambahkan`);
+        navigate("/admin-pusat/pondok");
       }
+    } catch (err: any) {
+      setError(err.message || "Gagal menambahkan pondok");
+      toast.error("Gagal menambahkan pondok");
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    createPondokMutation.mutate(formData);
   };
 
   return (
@@ -314,8 +330,8 @@ const PondokCreatePage: React.FC = () => {
             </div>
           </CardContent>
           <CardFooter className="justify-end">
-            <Button type="submit" disabled={createPondokMutation.isPending}>
-              {createPondokMutation.isPending ? "Menyimpan..." : "Simpan"}
+            <Button type="submit" disabled={createPondokMutation.isPending || isSubmitting}>
+              {createPondokMutation.isPending || isSubmitting ? "Menyimpan..." : "Simpan"}
             </Button>
           </CardFooter>
         </form>

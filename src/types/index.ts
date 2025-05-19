@@ -17,6 +17,7 @@ export enum PengurusJabatan {
   SEKRETARIS = "sekretaris",
   BENDAHARA = "bendahara",
   GURU = "guru",
+  ANGGOTA = "anggota",
 }
 
 export enum DocumentStatus {
