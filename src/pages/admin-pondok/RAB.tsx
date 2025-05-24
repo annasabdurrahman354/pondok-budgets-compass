@@ -1,4 +1,3 @@
-
 import React from "react";
 import { AdminPondokLayout } from "@/components/layout/AdminPondokLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -58,6 +57,12 @@ const RABPage: React.FC = () => {
     !canSubmitRAB || 
     currentPeriodRABExists || 
     isLoading;
+
+  const handleView = (rab: RAB) => {
+    if (rab.id) {
+      navigate(`/admin-pondok/rab/${rab.id}`);
+    }
+  };
 
   console.log({
     isVerified,
@@ -129,6 +134,7 @@ const RABPage: React.FC = () => {
               data={rabs}
               isLoading={isLoading}
               viewOnly
+              onView={handleView}
             />
           </div>
         </CardContent>

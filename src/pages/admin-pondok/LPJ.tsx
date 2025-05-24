@@ -1,4 +1,3 @@
-
 import React from "react";
 import { AdminPondokLayout } from "@/components/layout/AdminPondokLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,6 +71,12 @@ const LPJPage: React.FC = () => {
     !hasApprovedRAB ||
     currentPeriodLPJExists || 
     isLoading;
+
+  const handleView = (lpj: LPJ) => {
+    if (lpj.id) {
+      navigate(`/admin-pondok/lpj/${lpj.id}`);
+    }
+  };
 
   console.log({
     isVerified,
@@ -154,6 +159,7 @@ const LPJPage: React.FC = () => {
               data={lpjs}
               isLoading={isLoading}
               viewOnly
+              onView={handleView}
             />
           </div>
         </CardContent>

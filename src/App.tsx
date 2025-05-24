@@ -1,100 +1,75 @@
+import React from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { QueryClient } from '@tanstack/react-query';
+import { Toaster } from 'sonner';
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import Login from "./pages/Login";
-import AdminPusatDashboard from "./pages/admin-pusat/Dashboard";
-import AdminPusatRAB from "./pages/admin-pusat/RAB";
-import AdminPusatLPJ from "./pages/admin-pusat/LPJ";
-import AdminPusatPeriode from "./pages/admin-pusat/Periode";
-import AdminPusatPondok from "./pages/admin-pusat/Pondok";
-import AdminPusatPondokCreate from "./pages/admin-pusat/PondokCreate";
-import AdminPusatPondokEdit from "./pages/admin-pusat/PondokEdit";
-import AdminPondokDashboard from "./pages/admin-pondok/Dashboard";
-import AdminPondokRAB from "./pages/admin-pondok/RAB";
-import AdminPondokCreateRAB from "./pages/admin-pondok/CreateRAB";
-import AdminPondokLPJ from "./pages/admin-pondok/LPJ";
-import AdminPondokCreateLPJ from "./pages/admin-pondok/CreateLPJ";
-import AdminPondokAkun from "./pages/admin-pondok/Akun";
-import { toast } from "sonner";
-import { useEffect } from "react";
-import { initStorageBuckets } from "./services/initStorage";
+// Import your page components here
+import Index from "@/pages/Index";
+import Login from "@/pages/Login";
+import NotFound from "@/pages/NotFound";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-      staleTime: 30000,
-      meta: {
-        onError: (error) => {
-          toast.error(`Error: ${(error as Error).message || "Terjadi kesalahan"}`);
-        }
-      }
-    },
-    mutations: {
-      meta: {
-        onError: (error) => {
-          toast.error(`Error: ${(error as Error).message || "Terjadi kesalahan saat memproses data"}`);
-        }
-      }
-    }
-  }
-});
+// Admin Pusat Pages
+import AdminPusatDashboard from "@/pages/admin-pusat/Dashboard";
+import PeriodePage from "@/pages/admin-pusat/Periode";
+import PondokPage from "@/pages/admin-pusat/Pondok";
+import PondokCreatePage from "@/pages/admin-pusat/PondokCreate";
+import PondokEditPage from "@/pages/admin-pusat/PondokEdit";
+import AdminPusatRABPage from "@/pages/admin-pusat/RAB";
+import AdminPusatLPJPage from "@/pages/admin-pusat/LPJ";
+import AdminPusatRABDetailPage from "@/pages/admin-pusat/RABDetail";
+import AdminPusatLPJDetailPage from "@/pages/admin-pusat/LPJDetail";
 
-// Initialize storage buckets
-const AppInitializer = () => {
-  useEffect(() => {
-    initStorageBuckets().catch(console.error);
-  }, []);
-  
-  return null;
-};
+// Admin Pondok Pages
+import AdminPondokDashboard from "@/pages/admin-pondok/Dashboard";
+import AdminPondokRABPage from "@/pages/admin-pondok/RAB";
+import AdminPondokLPJPage from "@/pages/admin-pondok/LPJ";
+import CreateRABPage from "@/pages/admin-pondok/RABCreate";
+import CreateLPJPage from "@/pages/admin-pondok/LPJCreate";
+import AkunPage from "@/pages/admin-pondok/Akun";
+import AdminPondokRABDetailPage from "@/pages/admin-pondok/RABDetail";
+import AdminPondokLPJDetailPage from "@/pages/admin-pondok/LPJDetail";
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <AppInitializer />
-          <Routes>
-            {/* Default route redirects to login */}
-            <Route path="/" element={<Navigate to="/login" replace />} />
-            
-            {/* Auth routes */}
-            <Route path="/login" element={<Login />} />
-            
-            {/* Admin Pusat routes */}
-            <Route path="/admin-pusat/dashboard" element={<AdminPusatDashboard />} />
-            <Route path="/admin-pusat/rab" element={<AdminPusatRAB />} />
-            <Route path="/admin-pusat/lpj" element={<AdminPusatLPJ />} />
-            <Route path="/admin-pusat/periode" element={<AdminPusatPeriode />} />
-            <Route path="/admin-pusat/pondok" element={<AdminPusatPondok />} />
-            <Route path="/admin-pusat/pondok/create" element={<AdminPusatPondokCreate />} />
-            <Route path="/admin-pusat/pondok/:id/edit" element={<AdminPusatPondokEdit />} />
-            
-            {/* Admin Pondok routes */}
-            <Route path="/admin-pondok/dashboard" element={<AdminPondokDashboard />} />
-            <Route path="/admin-pondok/rab" element={<AdminPondokRAB />} />
-            <Route path="/admin-pondok/rab/create" element={<AdminPondokCreateRAB />} />
-            <Route path="/admin-pondok/lpj" element={<AdminPondokLPJ />} />
-            <Route path="/admin-pondok/lpj/create" element={<AdminPondokCreateLPJ />} />
-            <Route path="/admin-pondok/akun" element={<AdminPondokAkun />} />
-            
-            {/* Catch-all route for 404 */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+function App() {
+  return (
+    <QueryClient defaultOptions={{
+      queries: {
+        retry: 1,
+        refetchOnWindowFocus: false,
+      },
+    }}>
+      <Router>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/login" element={<Login />} />
+          
+          {/* Admin Pusat Routes */}
+          <Route path="/admin-pusat/dashboard" element={<AdminPusatDashboard />} />
+          <Route path="/admin-pusat/periode" element={<PeriodePage />} />
+          <Route path="/admin-pusat/pondok" element={<PondokPage />} />
+          <Route path="/admin-pusat/pondok/create" element={<PondokCreatePage />} />
+          <Route path="/admin-pusat/pondok/:id/edit" element={<PondokEditPage />} />
+          <Route path="/admin-pusat/rab" element={<AdminPusatRABPage />} />
+          <Route path="/admin-pusat/rab/:id" element={<AdminPusatRABDetailPage />} />
+          <Route path="/admin-pusat/lpj" element={<AdminPusatLPJPage />} />
+          <Route path="/admin-pusat/lpj/:id" element={<AdminPusatLPJDetailPage />} />
+          
+          {/* Admin Pondok Routes */}
+          <Route path="/admin-pondok/dashboard" element={<AdminPondokDashboard />} />
+          <Route path="/admin-pondok/rab" element={<AdminPondokRABPage />} />
+          <Route path="/admin-pondok/rab/create" element={<CreateRABPage />} />
+          <Route path="/admin-pondok/rab/:id" element={<AdminPondokRABDetailPage />} />
+          <Route path="/admin-pondok/lpj" element={<AdminPondokLPJPage />} />
+          <Route path="/admin-pondok/lpj/create" element={<CreateLPJPage />} />
+          <Route path="/admin-pondok/lpj/:id" element={<AdminPondokLPJDetailPage />} />
+          <Route path="/admin-pondok/akun" element={<AkunPage />} />
+          
+          {/* 404 Route */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+        <Toaster />
+      </Router>
+    </QueryClient>
+  );
+}
 
 export default App;

@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useNavigate } from "react";
 import { AdminPusatLayout } from "@/components/layout/AdminPusatLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { PeriodInfo } from "@/components/dashboard/PeriodInfo";
@@ -25,6 +24,7 @@ const Dashboard: React.FC = () => {
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [jenisFilter, setJenisFilter] = useState<string>("all");
+  const navigate = useNavigate();
 
   // Fetch current period
   const { data: currentPeriode, isLoading: isLoadingPeriode } = useQuery({
@@ -121,6 +121,18 @@ const Dashboard: React.FC = () => {
     const result = await updateLPJStatus(lpj.id, DocumentStatus.REVISI, pesanRevisi);
     if (result) {
       toast.success("LPJ ditolak dan memerlukan revisi");
+    }
+  };
+
+  const handleRABView = (rab: RAB) => {
+    if (rab.id) {
+      navigate(`/admin-pusat/rab/${rab.id}`);
+    }
+  };
+
+  const handleLPJView = (lpj: LPJ) => {
+    if (lpj.id) {
+      navigate(`/admin-pusat/lpj/${lpj.id}`);
     }
   };
 
@@ -231,8 +243,7 @@ const Dashboard: React.FC = () => {
           ) : (
             <RABTable 
               data={filteredRABs} 
-              title={`RAB Periode ${formatPeriode(currentPeriode.id)}`} 
-              onView={(rab) => console.log("View RAB", rab)}
+              onView={handleRABView}
               onApprove={handleRABApprove}
               onRevision={handleRABRevisionWrapper}
             />
@@ -246,8 +257,7 @@ const Dashboard: React.FC = () => {
           ) : (
             <LPJTable 
               data={filteredLPJs} 
-              title={`LPJ Periode ${formatPeriode(currentPeriode.id)}`} 
-              onView={(lpj) => console.log("View LPJ", lpj)}
+              onView={handleLPJView}
               onApprove={handleLPJApprove}
               onRevision={handleLPJRevisionWrapper}
             />
