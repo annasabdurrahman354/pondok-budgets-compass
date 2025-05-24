@@ -1,5 +1,4 @@
-
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Pondok,
   PondokJenis,
@@ -62,6 +61,8 @@ export const fetchAllPondoks = async (): Promise<Pondok[]> => {
     return [];
   }
 };
+
+export const fetchAllPondok = fetchAllPondoks; // Alias for compatibility
 
 export const fetchPondok = async (id: string): Promise<Pondok | null> => {
   try {
@@ -163,6 +164,32 @@ export const fetchRABDetail = async (id: string): Promise<RAB | null> => {
   return fetchRAB(id);
 };
 
+export const fetchAllRAB = async (): Promise<RAB[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('rab')
+      .select(`
+        *,
+        pondok:pondok_id(*),
+        periode:periode_id(*)
+      `)
+      .order('submitted_at', { ascending: false });
+    
+    if (error) throw error;
+    return data.map(item => ({
+      ...item,
+      status: item.status as DocumentStatus,
+      pondok: item.pondok ? {
+        ...item.pondok,
+        jenis: item.pondok.jenis as PondokJenis
+      } : undefined
+    })) as RAB[];
+  } catch (error) {
+    console.error('Error fetching all RABs:', error);
+    return [];
+  }
+};
+
 export const fetchLPJsByPondok = async (pondokId: string): Promise<LPJ[]> => {
   try {
     const { data, error } = await supabase
@@ -238,6 +265,10 @@ export const fetchLPJ = async (id: string): Promise<LPJ | null> => {
     console.error('Error fetching LPJ:', error);
     return null;
   }
+};
+
+export const fetchLPJDetail = async (id: string): Promise<LPJ | null> => {
+  return fetchLPJ(id);
 };
 
 export const fetchAllLPJ = async (): Promise<LPJ[]> => {

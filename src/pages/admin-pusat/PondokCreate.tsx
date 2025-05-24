@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { AdminPusatLayout } from "@/components/layout/AdminPusatLayout";
 import {
@@ -225,6 +224,7 @@ const PondokCreatePage: React.FC = () => {
     try {
       // 1. Create the pondok first
       const pondokData = {
+        id: crypto.randomUUID(), // Generate ID manually
         nama: formData.nama,
         jenis: formData.jenis,
         nomor_telepon: formData.nomor_telepon || null,
@@ -234,6 +234,7 @@ const PondokCreatePage: React.FC = () => {
         kota_id: formData.kota_id,
         daerah_sambung_id: formData.daerah_sambung_id || null,
         updated_at: new Date().toISOString(),
+        accepted_at: null, // Add this field
       };
       
       const newPondok = await createPondok(pondokData);
