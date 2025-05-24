@@ -1,271 +1,204 @@
-import React, { useState, useEffect, useNavigate } from "react";
+import React from "react";
+import { useNavigate } from "react-router-dom";
 import { AdminPusatLayout } from "@/components/layout/AdminPusatLayout";
-import { StatCard } from "@/components/dashboard/StatCard";
-import { PeriodInfo } from "@/components/dashboard/PeriodInfo";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RABTable } from "@/components/tables/RABTable";
 import { LPJTable } from "@/components/tables/LPJTable";
-import { formatCurrency, formatPeriode } from "@/lib/utils";
-import { DocumentStatus, LPJ, PondokJenis, RAB } from "@/types";
-import { BookOpen, Calculator, CheckCircle, Clock } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { useQuery } from "@tanstack/react-query";
-import { fetchCurrentPeriode, fetchRABsByPeriode, fetchLPJsByPeriode, updateRABStatus, updateLPJStatus } from "@/services/api";
+import { PeriodInfo } from "@/components/dashboard/PeriodInfo";
+import { StatCard } from "@/components/dashboard/StatCard";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { 
+  fetchCurrentPeriode, 
+  fetchRABsByPeriode, 
+  fetchLPJsByPeriode,
+  updateRABStatus,
+  updateLPJStatus
+} from "@/services/api";
+import { DocumentStatus, RAB, LPJ } from "@/types";
 import { toast } from "sonner";
+import { FileText, Building2, Calendar, CheckCircle } from "lucide-react";
 
-const Dashboard: React.FC = () => {
-  const [searchText, setSearchText] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [jenisFilter, setJenisFilter] = useState<string>("all");
+const AdminPusatDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  // Fetch current period
+  // Fetch current periode and data
   const { data: currentPeriode, isLoading: isLoadingPeriode } = useQuery({
     queryKey: ['currentPeriode'],
     queryFn: fetchCurrentPeriode
   });
 
-  // Fetch RABs for current period
   const { data: rabs = [], isLoading: isLoadingRABs } = useQuery({
     queryKey: ['rabs', currentPeriode?.id],
-    queryFn: () => currentPeriode?.id ? fetchRABsByPeriode(currentPeriode.id) : Promise.resolve([]),
-    enabled: !!currentPeriode?.id,
+    queryFn: () => currentPeriode ? fetchRABsByPeriode(currentPeriode.id) : Promise.resolve([]),
+    enabled: !!currentPeriode
   });
 
-  // Fetch LPJs for current period
   const { data: lpjs = [], isLoading: isLoadingLPJs } = useQuery({
     queryKey: ['lpjs', currentPeriode?.id],
-    queryFn: () => currentPeriode?.id ? fetchLPJsByPeriode(currentPeriode.id) : Promise.resolve([]),
-    enabled: !!currentPeriode?.id,
+    queryFn: () => currentPeriode ? fetchLPJsByPeriode(currentPeriode.id) : Promise.resolve([]),
+    enabled: !!currentPeriode
   });
-  
-  const filteredRABs = rabs.filter((rab) => {
-    return (
-      (searchText === "" || 
-        rab.pondok?.nama.toLowerCase().includes(searchText.toLowerCase())) &&
-      (statusFilter === "all" || rab.status === statusFilter) &&
-      (jenisFilter === "all" || rab.pondok?.jenis === jenisFilter)
-    );
-  });
-  
-  const filteredLPJs = lpjs.filter((lpj) => {
-    return (
-      (searchText === "" || 
-        lpj.pondok?.nama.toLowerCase().includes(searchText.toLowerCase())) &&
-      (statusFilter === "all" || lpj.status === statusFilter) &&
-      (jenisFilter === "all" || lpj.pondok?.jenis === jenisFilter)
-    );
-  });
-  
-  // Calculate totals
-  const totalRAB = rabs.reduce((sum, rab) => sum + (rab.rencana_pengeluaran || 0), 0);
-  const totalLPJ = lpjs.reduce((sum, lpj) => sum + (lpj.realisasi_pengeluaran || 0), 0);
-  const rabPending = rabs.filter(r => r.status === DocumentStatus.DIAJUKAN).length;
-  const lpjPending = lpjs.filter(l => l.status === DocumentStatus.DIAJUKAN).length;
 
-  // Handle RAB approval or rejection
+  // mutations and handlers
+  const updateRABMutation = useMutation({
+    mutationFn: ({ id, status, pesanRevisi }: { id: string; status: DocumentStatus; pesanRevisi?: string }) =>
+      updateRABStatus(id, status, pesanRevisi),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rabs'] });
+      toast.success('Status RAB berhasil diperbarui');
+    },
+    onError: () => {
+      toast.error('Gagal memperbarui status RAB');
+    }
+  });
+
+  const updateLPJMutation = useMutation({
+    mutationFn: ({ id, status, pesanRevisi }: { id: string; status: DocumentStatus; pesanRevisi?: string }) =>
+      updateLPJStatus(id, status, pesanRevisi),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lpjs'] });
+      toast.success('Status LPJ berhasil diperbarui');
+    },
+    onError: () => {
+      toast.error('Gagal memperbarui status LPJ');
+    }
+  });
+
   const handleRABApprove = async (rab: RAB) => {
     if (!rab.id) return;
-    
-    const result = await updateRABStatus(rab.id, DocumentStatus.DITERIMA);
-    if (result) {
-      toast.success("RAB berhasil disetujui");
-    }
+    updateRABMutation.mutate({ id: rab.id, status: DocumentStatus.DITERIMA });
   };
 
-  // Fix: Add wrapper function to match expected signature
-  const handleRABRevisionWrapper = (rab: RAB) => {
-    const pesanRevisi = prompt("Masukkan pesan revisi:");
-    if (pesanRevisi) {
-      handleRABRevision(rab, pesanRevisi);
-    }
+  const handleRABRevision = (rab: RAB) => {
+    // Navigate to detail page for review
+    navigate(`/admin-pusat/rab/${rab.id}`);
   };
 
-  const handleRABRevision = async (rab: RAB, pesanRevisi: string) => {
-    if (!rab.id) return;
-    
-    const result = await updateRABStatus(rab.id, DocumentStatus.REVISI, pesanRevisi);
-    if (result) {
-      toast.success("RAB ditolak dan memerlukan revisi");
-    }
-  };
-
-  // Handle LPJ approval or rejection
   const handleLPJApprove = async (lpj: LPJ) => {
     if (!lpj.id) return;
-    
-    const result = await updateLPJStatus(lpj.id, DocumentStatus.DITERIMA);
-    if (result) {
-      toast.success("LPJ berhasil disetujui");
-    }
+    updateLPJMutation.mutate({ id: lpj.id, status: DocumentStatus.DITERIMA });
   };
 
-  // Fix: Add wrapper function to match expected signature
-  const handleLPJRevisionWrapper = (lpj: LPJ) => {
-    const pesanRevisi = prompt("Masukkan pesan revisi:");
-    if (pesanRevisi) {
-      handleLPJRevision(lpj, pesanRevisi);
-    }
-  };
-
-  const handleLPJRevision = async (lpj: LPJ, pesanRevisi: string) => {
-    if (!lpj.id) return;
-    
-    const result = await updateLPJStatus(lpj.id, DocumentStatus.REVISI, pesanRevisi);
-    if (result) {
-      toast.success("LPJ ditolak dan memerlukan revisi");
-    }
+  const handleLPJRevision = (lpj: LPJ) => {
+    // Navigate to detail page for review
+    navigate(`/admin-pusat/lpj/${lpj.id}`);
   };
 
   const handleRABView = (rab: RAB) => {
-    if (rab.id) {
-      navigate(`/admin-pusat/rab/${rab.id}`);
-    }
+    navigate(`/admin-pusat/rab/${rab.id}`);
   };
 
   const handleLPJView = (lpj: LPJ) => {
-    if (lpj.id) {
-      navigate(`/admin-pusat/lpj/${lpj.id}`);
-    }
+    navigate(`/admin-pusat/lpj/${lpj.id}`);
   };
 
-  if (isLoadingPeriode) {
-    return (
-      <AdminPusatLayout>
-        <div className="flex justify-center items-center h-64">
-          <p>Memuat data periode...</p>
-        </div>
-      </AdminPusatLayout>
-    );
-  }
+  // statistics calculation
+  const totalPondoks = new Set(rabs.map(rab => rab.pondok_id)).size;
+  const approvedRABs = rabs.filter(rab => rab.status === DocumentStatus.DITERIMA).length;
+  const approvedLPJs = lpjs.filter(lpj => lpj.status === DocumentStatus.DITERIMA).length;
+  const pendingRABs = rabs.filter(rab => rab.status === DocumentStatus.DIAJUKAN).length;
+  const pendingLPJs = lpjs.filter(lpj => lpj.status === DocumentStatus.DIAJUKAN).length;
 
-  if (!currentPeriode) {
+  const isLoading = isLoadingPeriode || isLoadingRABs || isLoadingLPJs;
+
+  if (isLoading) {
     return (
-      <AdminPusatLayout>
-        <div className="flex flex-col items-center justify-center h-64 space-y-4">
-          <p className="text-lg">Tidak ada periode aktif saat ini</p>
-          <p className="text-muted-foreground">Silakan buat periode baru di halaman Periode</p>
+      <AdminPusatLayout title="Dashboard">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Memuat data...</p>
+          </div>
         </div>
       </AdminPusatLayout>
     );
   }
 
   return (
-    <AdminPusatLayout>
-      <PeriodInfo periode={currentPeriode} />
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard
-          title="Total RAB Periode Ini"
-          value={formatCurrency(totalRAB)}
-          description={`Periode ${formatPeriode(currentPeriode.id)}`}
-          icon={<Calculator className="h-4 w-4 text-muted-foreground" />}
-        />
-        <StatCard
-          title="Total LPJ Periode Ini"
-          value={formatCurrency(totalLPJ)}
-          description={`Periode ${formatPeriode(currentPeriode.id)}`}
-          icon={<BookOpen className="h-4 w-4 text-muted-foreground" />}
-        />
-        <StatCard
-          title="RAB Menunggu Persetujuan"
-          value={`${rabPending}`}
-          description="Butuh tindakan"
-          icon={<Clock className="h-4 w-4 text-yellow-500" />}
-        />
-        <StatCard
-          title="LPJ Menunggu Persetujuan"
-          value={`${lpjPending}`}
-          description="Butuh tindakan"
-          icon={<CheckCircle className="h-4 w-4 text-green-500" />}
-        />
-      </div>
-
-      <div className="mb-6 flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <Input
-            placeholder="Cari pondok..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            className="max-w-sm"
+    <AdminPusatLayout title="Dashboard">
+      <div className="space-y-6">
+        {currentPeriode && <PeriodInfo periode={currentPeriode} />}
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            title="Total Pondok"
+            value={totalPondoks.toString()}
+            icon={Building2}
+            description="Pondok terdaftar"
+          />
+          <StatCard
+            title="RAB Disetujui"
+            value={approvedRABs.toString()}
+            icon={CheckCircle}
+            description="Dari total RAB"
+          />
+          <StatCard
+            title="LPJ Disetujui"
+            value={approvedLPJs.toString()}
+            icon={CheckCircle}
+            description="Dari total LPJ"
+          />
+          <StatCard
+            title="Menunggu Review"
+            value={(pendingRABs + pendingLPJs).toString()}
+            icon={FileText}
+            description="RAB & LPJ pending"
           />
         </div>
-        <div className="flex gap-3">
-          <Select
-            value={statusFilter}
-            onValueChange={setStatusFilter}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Status</SelectItem>
-              <SelectItem value={DocumentStatus.DIAJUKAN}>Diajukan</SelectItem>
-              <SelectItem value={DocumentStatus.DITERIMA}>Diterima</SelectItem>
-              <SelectItem value={DocumentStatus.REVISI}>Revisi</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Select
-            value={jenisFilter}
-            onValueChange={setJenisFilter}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter Jenis Pondok" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Jenis</SelectItem>
-              <SelectItem value={PondokJenis.PPM}>PPM</SelectItem>
-              <SelectItem value={PondokJenis.PPPM}>PPPM</SelectItem>
-              <SelectItem value={PondokJenis.BOARDING}>Boarding</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
 
-      <Tabs defaultValue="rab" className="w-full">
-        <TabsList className="mb-6">
-          <TabsTrigger value="rab">RAB</TabsTrigger>
-          <TabsTrigger value="lpj">LPJ</TabsTrigger>
-        </TabsList>
-        <TabsContent value="rab" className="animate-fade-in">
-          {isLoadingRABs ? (
-            <div className="flex justify-center p-6">
-              <p>Memuat data RAB...</p>
-            </div>
-          ) : (
-            <RABTable 
-              data={filteredRABs} 
-              onView={handleRABView}
-              onApprove={handleRABApprove}
-              onRevision={handleRABRevisionWrapper}
-            />
-          )}
-        </TabsContent>
-        <TabsContent value="lpj" className="animate-fade-in">
-          {isLoadingLPJs ? (
-            <div className="flex justify-center p-6">
-              <p>Memuat data LPJ...</p>
-            </div>
-          ) : (
-            <LPJTable 
-              data={filteredLPJs} 
-              onView={handleLPJView}
-              onApprove={handleLPJApprove}
-              onRevision={handleLPJRevisionWrapper}
-            />
-          )}
-        </TabsContent>
-      </Tabs>
+        <Tabs defaultValue="rab" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="rab">RAB ({rabs.length})</TabsTrigger>
+            <TabsTrigger value="lpj">LPJ ({lpjs.length})</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="rab" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Daftar RAB</CardTitle>
+                <CardDescription>
+                  Rencana Anggaran Belanja periode {currentPeriode?.tahun}-{currentPeriode?.bulan.toString().padStart(2, '0')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <RABTable 
+                    data={rabs}
+                    onView={handleRABView}
+                    onApprove={handleRABApprove}
+                    onRevision={handleRABRevision}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="lpj" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Daftar LPJ</CardTitle>
+                <CardDescription>
+                  Laporan Pertanggung Jawaban periode {currentPeriode?.tahun}-{currentPeriode?.bulan.toString().padStart(2, '0')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <LPJTable 
+                    data={lpjs}
+                    onView={handleLPJView}
+                    onApprove={handleLPJApprove}
+                    onRevision={handleLPJRevision}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
     </AdminPusatLayout>
   );
 };
 
-export default Dashboard;
+export default AdminPusatDashboard;

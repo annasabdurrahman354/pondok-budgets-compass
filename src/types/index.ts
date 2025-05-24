@@ -1,3 +1,4 @@
+
 // Enums
 export enum UserRole {
   ADMIN_PUSAT = "admin_pusat",
@@ -17,6 +18,7 @@ export enum PengurusJabatan {
   SEKRETARIS = "Sekretaris",
   BENDAHARA = "Bendahara",
   GURU = "Guru",
+  ANGGOTA = "Anggota",
 }
 
 export enum DocumentStatus {

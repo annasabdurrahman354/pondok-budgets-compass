@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { LPJTable } from "@/components/tables/LPJTable";
-import { DocumentStatus, RAB } from "@/types";
+import { DocumentStatus, RAB, LPJ } from "@/types";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchLPJsByPondok, fetchCurrentPeriode, fetchRABsByPondok, fetchPondok } from "@/services/api";

@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import {
   Pondok,
@@ -25,6 +26,22 @@ export const fetchCurrentPeriode = async (): Promise<Periode | null> => {
   } catch (error) {
     console.error('Error fetching current periode:', error);
     return null;
+  }
+};
+
+export const fetchAllPeriode = async (): Promise<Periode[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('periode')
+      .select('*')
+      .order('tahun', { ascending: false })
+      .order('bulan', { ascending: false });
+    
+    if (error) throw error;
+    return data as Periode[];
+  } catch (error) {
+    console.error('Error fetching all periode:', error);
+    return [];
   }
 };
 
@@ -140,6 +157,10 @@ export const fetchRAB = async (id: string): Promise<RAB | null> => {
     console.error('Error fetching RAB:', error);
     return null;
   }
+};
+
+export const fetchRABDetail = async (id: string): Promise<RAB | null> => {
+  return fetchRAB(id);
 };
 
 export const fetchLPJsByPondok = async (pondokId: string): Promise<LPJ[]> => {
@@ -377,14 +398,27 @@ export const updateLPJStatus = async (
   }
 };
 
+export const approveLPJ = async (id: string): Promise<boolean> => {
+  return updateLPJStatus(id, DocumentStatus.DITERIMA);
+};
+
+export const rejectLPJ = async (id: string, pesanRevisi: string): Promise<boolean> => {
+  return updateLPJStatus(id, DocumentStatus.REVISI, pesanRevisi);
+};
+
+export const approveRAB = async (id: string): Promise<boolean> => {
+  return updateRABStatus(id, DocumentStatus.DITERIMA);
+};
+
+export const rejectRAB = async (id: string, pesanRevisi: string): Promise<boolean> => {
+  return updateRABStatus(id, DocumentStatus.REVISI, pesanRevisi);
+};
+
 export const createPondok = async (pondokData: Omit<Pondok, 'id'>): Promise<Pondok | null> => {
   try {
     const { data, error } = await supabase
       .from('pondok')
-      .insert([{
-        id: crypto.randomUUID(),
-        ...pondokData
-      }])
+      .insert([pondokData])
       .select()
       .single();
     
@@ -396,6 +430,41 @@ export const createPondok = async (pondokData: Omit<Pondok, 'id'>): Promise<Pond
   } catch (error) {
     console.error('Error creating pondok:', error);
     return null;
+  }
+};
+
+export const updatePondok = async (id: string, pondokData: Partial<Pondok>): Promise<Pondok | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('pondok')
+      .update(pondokData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return {
+      ...data,
+      jenis: data.jenis as PondokJenis
+    } as Pondok;
+  } catch (error) {
+    console.error('Error updating pondok:', error);
+    return null;
+  }
+};
+
+export const verifyPondok = async (id: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('pondok')
+      .update({ accepted_at: new Date().toISOString() })
+      .eq('id', id);
+    
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error verifying pondok:', error);
+    return false;
   }
 };
 
@@ -412,6 +481,42 @@ export const createPengurus = async (pengurusData: Omit<Pengurus, 'id'>): Promis
   } catch (error) {
     console.error('Error creating pengurus:', error);
     return null;
+  }
+};
+
+export const addPengurus = async (pengurusData: Omit<Pengurus, 'id'>): Promise<Pengurus | null> => {
+  return createPengurus(pengurusData);
+};
+
+export const updatePengurus = async (id: string, pengurusData: Partial<Pengurus>): Promise<Pengurus | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('pengurus')
+      .update(pengurusData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data as Pengurus;
+  } catch (error) {
+    console.error('Error updating pengurus:', error);
+    return null;
+  }
+};
+
+export const deletePengurus = async (id: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('pengurus')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error deleting pengurus:', error);
+    return false;
   }
 };
 

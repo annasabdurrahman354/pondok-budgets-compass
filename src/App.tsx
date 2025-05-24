@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 
 // Import your page components here
@@ -29,14 +30,18 @@ import AkunPage from "@/pages/admin-pondok/Akun";
 import AdminPondokRABDetailPage from "@/pages/admin-pondok/RABDetail";
 import AdminPondokLPJDetailPage from "@/pages/admin-pondok/LPJDetail";
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
 function App() {
   return (
-    <QueryClient defaultOptions={{
-      queries: {
-        retry: 1,
-        refetchOnWindowFocus: false,
-      },
-    }}>
+    <QueryClientProvider client={queryClient}>
       <Router>
         <Routes>
           <Route path="/" element={<Index />} />
@@ -68,7 +73,7 @@ function App() {
         </Routes>
         <Toaster />
       </Router>
-    </QueryClient>
+    </QueryClientProvider>
   );
 }
 

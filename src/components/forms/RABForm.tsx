@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,30 +70,32 @@ export const RABForm: React.FC<RABFormProps> = ({
     setIsSubmitting(true);
     
     try {
-      // 1. Upload document first
-      const file = data.dokumen[0];
-      const filePath = await uploadRABFile(file, user.pondok_id, periode.id);
-      
-      if (!filePath) {
-        throw new Error("Gagal mengunggah dokumen RAB");
-      }
-      
-      // 2. Create RAB record
-      const rabData: Partial<RAB> = {
+      // 1. Create RAB record first
+      const rabData: Omit<RAB, 'id'> = {
         pondok_id: user.pondok_id,
         periode_id: periode.id,
         status: DocumentStatus.DIAJUKAN,
         saldo_awal: data.saldo_awal,
         rencana_pemasukan: data.rencana_pemasukan,
         rencana_pengeluaran: data.rencana_pengeluaran,
-        dokumen_path: filePath,
+        dokumen_path: null,
         submitted_at: new Date().toISOString(),
+        accepted_at: null,
+        pesan_revisi: null,
       };
       
       const result = await createRAB(rabData);
       
-      if (!result) {
+      if (!result || !result.id) {
         throw new Error("Gagal menyimpan data RAB");
+      }
+      
+      // 2. Upload document
+      const file = data.dokumen[0];
+      const filePath = await uploadRABFile(file, result.id);
+      
+      if (!filePath) {
+        throw new Error("Gagal mengunggah dokumen RAB");
       }
       
       toast.success("RAB berhasil diajukan");
