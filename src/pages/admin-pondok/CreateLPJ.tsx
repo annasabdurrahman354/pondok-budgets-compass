@@ -27,6 +27,7 @@ const CreateLPJPage: React.FC = () => {
   const queryClient = useQueryClient();
   const pondokId = user?.pondok_id || "";
   
+  const [currentRABExist, setCurrentRABExist] = useState<boolean>(false);
   const [file, setFile] = useState<File | null>(null);
   const [formData, setFormData] = useState<Partial<LPJ>>({
     pondok_id: pondokId,
@@ -62,6 +63,7 @@ const CreateLPJPage: React.FC = () => {
       const currentRAB = rabs.find(rab => rab.periode_id === currentPeriode.id);
       
       if (currentRAB) {
+        setCurrentRABExist(true);
         setFormData(prev => ({
           ...prev,
           periode_id: currentPeriode.id,
@@ -240,6 +242,7 @@ const CreateLPJPage: React.FC = () => {
                       type="number"
                       value={formData.saldo_awal || 0}
                       onChange={handleInputChange}
+                      disabled={currentRABExist}
                       required
                     />
                   </div>
@@ -251,6 +254,7 @@ const CreateLPJPage: React.FC = () => {
                       type="number"
                       value={formData.rencana_pemasukan || 0}
                       onChange={handleInputChange}
+                      disabled={currentRABExist}
                       required
                     />
                   </div>
@@ -262,6 +266,7 @@ const CreateLPJPage: React.FC = () => {
                       type="number"
                       value={formData.rencana_pengeluaran || 0}
                       onChange={handleInputChange}
+                      disabled={currentRABExist}
                       required
                     />
                   </div>

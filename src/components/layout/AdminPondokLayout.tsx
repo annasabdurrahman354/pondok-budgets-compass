@@ -51,7 +51,7 @@ const BottomNav: React.FC = () => {
   
   return (
     <div className="bottom-nav">
-      <div className="flex justify-between items-center px-4 py-3">
+      <div className="flex justify-around items-center px-4 py-3">
         <Link
           to="/admin-pondok/dashboard"
           className={`flex flex-col items-center ${

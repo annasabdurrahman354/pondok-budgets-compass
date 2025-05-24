@@ -11,13 +11,12 @@ export enum PondokJenis {
 }
 
 export enum PengurusJabatan {
-  KETUA = "ketua",
-  WAKIL_KETUA = "wakil_ketua",
-  PINISEPUH = "pinisepuh",
-  SEKRETARIS = "sekretaris",
-  BENDAHARA = "bendahara",
-  GURU = "guru",
-  ANGGOTA = "anggota",
+  KETUA = "Ketua",
+  WAKIL_KETUA = "Wakil Ketua",
+  PINISEPUH = "Pinisepuh",
+  SEKRETARIS = "Sekretaris",
+  BENDAHARA = "Bendahara",
+  GURU = "Guru",
 }
 
 export enum DocumentStatus {

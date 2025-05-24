@@ -64,7 +64,7 @@ export const AdminPusatLayout: React.FC<AdminPusatLayoutProps> = ({
               <div className="page-header mb-6">
                 <h1 className="page-title text-2xl font-bold">{title}</h1>
               </div>
-              <div className="animate-fade-in overflow-x-auto">{children}</div>
+              <div className="animate-fade-in overflow-x-auto p-2">{children}</div>
             </main>
           </div>
         </div>
@@ -89,7 +89,7 @@ const AdminSidebar: React.FC = () => {
   };
 
   return (
-    <Sidebar className="z-40 h-screen">
+    <Sidebar className="z-40 h-screen" variant="floating">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center">
