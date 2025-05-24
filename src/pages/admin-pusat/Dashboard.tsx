@@ -51,25 +51,25 @@ const AdminPusatDashboard: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
             title="Total Pondok"
-            value={totalPondoks}
+            value={totalPondoks.toString()}
             description="Pondok terdaftar"
             icon={<Building2 className="h-4 w-4" />}
           />
           <StatCard
             title="Pondok Terverifikasi"
-            value={verifiedPondoks}
+            value={verifiedPondoks.toString()}
             description="Pondok yang sudah diverifikasi"
             icon={<CheckCircle className="h-4 w-4" />}
           />
           <StatCard
             title="RAB Pending"
-            value={pendingRABs}
+            value={pendingRABs.toString()}
             description="Menunggu review"
             icon={<FileText className="h-4 w-4" />}
           />
           <StatCard
             title="LPJ Pending"
-            value={pendingLPJs}
+            value={pendingLPJs.toString()}
             description="Menunggu review"
             icon={<ClipboardList className="h-4 w-4" />}
           />

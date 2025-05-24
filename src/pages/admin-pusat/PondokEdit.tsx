@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { AdminPusatLayout } from "@/components/layout/AdminPusatLayout";
 import {
@@ -31,7 +32,7 @@ import {
   AccordionTrigger 
 } from "@/components/ui/accordion";
 import { PengurusForm } from "@/components/pondok/PengurusForm";
-import { PondokJenis, PengurusJabatan, UserRole } from "@/types";
+import { PondokJenis, PengurusJabatan, UserRole, Pengurus } from "@/types";
 import { ArrowLeft, Plus, User } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -150,16 +151,8 @@ const PondokEditPage: React.FC = () => {
 
   // Update pondok mutation
   const updatePondokMutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      const pondokData = {
-        nama: data.get("nama") as string,
-        jenis: data.get("jenis") as PondokJenis,
-        nomor_telepon: data.get("nomor_telepon") as string,
-        alamat: data.get("alamat") as string,
-        kode_pos: data.get("kode_pos") as string,
-      };
-
-      return updatePondok(pondokId as string, pondokData);
+    mutationFn: async (data: typeof pondokForm) => {
+      return updatePondok(id as string, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pondok'] });
@@ -312,12 +305,26 @@ const PondokEditPage: React.FC = () => {
       return;
     }
     
-    addPengurusMutation.mutate(newPengurus);
+    const pengurusData: Omit<Pengurus, "id"> = {
+      pondok_id: id!,
+      nama: newPengurus.nama,
+      jabatan: newPengurus.jabatan,
+      nomor_telepon: newPengurus.nomor_telepon,
+    };
+    
+    addPengurusMutation.mutate(pengurusData);
   };
 
   const handleSavePengurus = (pengurus: PengurusFormData) => {
     if (!pengurus.id) return;
-    updatePengurusMutation.mutate(pengurus);
+    updatePengurusMutation.mutate({ 
+      id: pengurus.id, 
+      data: {
+        nama: pengurus.nama,
+        jabatan: pengurus.jabatan,
+        nomor_telepon: pengurus.nomor_telepon,
+      }
+    });
   };
 
   // Handle admin changes

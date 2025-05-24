@@ -449,7 +449,7 @@ export const createPondok = async (pondokData: Omit<Pondok, 'id'>): Promise<Pond
   try {
     const { data, error } = await supabase
       .from('pondok')
-      .insert([pondokData])
+      .insert(pondokData)
       .select()
       .single();
     
