@@ -114,13 +114,20 @@ const CreateRABPage: React.FC = () => {
       let dokumenPath = null;
       
       if (file) {
-        dokumenPath = await uploadRABFile(file, data.pondok_id, data.periode_id);
+        dokumenPath = await uploadRABFile(file, data.pondok_id);
       }
       
-      const rabData = {
-        ...data,
+      const rabData: Omit<RAB, 'id'> = {
+        pondok_id: data.pondok_id,
+        periode_id: data.periode_id,
+        status: data.status || DocumentStatus.DIAJUKAN,
+        saldo_awal: data.saldo_awal || 0,
+        rencana_pemasukan: data.rencana_pemasukan || 0,
+        rencana_pengeluaran: data.rencana_pengeluaran || 0,
         dokumen_path: dokumenPath,
         submitted_at: new Date().toISOString(),
+        accepted_at: null,
+        pesan_revisi: null,
       };
       
       return createRAB(rabData);

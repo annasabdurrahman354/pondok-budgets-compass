@@ -126,13 +126,23 @@ const CreateLPJPage: React.FC = () => {
       let dokumenPath = null;
       
       if (file) {
-        dokumenPath = await uploadLPJFile(file, data.pondok_id, data.periode_id);
+        dokumenPath = await uploadLPJFile(file, data.pondok_id);
       }
       
-      const lpjData = {
-        ...data,
+      const lpjData: Omit<LPJ, 'id'> = {
+        pondok_id: data.pondok_id,
+        periode_id: data.periode_id,
+        status: data.status || DocumentStatus.DIAJUKAN,
+        saldo_awal: data.saldo_awal || 0,
+        rencana_pemasukan: data.rencana_pemasukan || 0,
+        rencana_pengeluaran: data.rencana_pengeluaran || 0,
+        realisasi_pemasukan: data.realisasi_pemasukan || 0,
+        realisasi_pengeluaran: data.realisasi_pengeluaran || 0,
+        sisa_saldo: data.sisa_saldo || 0,
         dokumen_path: dokumenPath,
         submitted_at: new Date().toISOString(),
+        accepted_at: null,
+        pesan_revisi: null,
       };
       
       return createLPJ(lpjData);
