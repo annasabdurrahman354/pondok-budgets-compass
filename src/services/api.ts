@@ -445,7 +445,7 @@ export const rejectRAB = async (id: string, pesanRevisi: string): Promise<boolea
   return updateRABStatus(id, DocumentStatus.REVISI, pesanRevisi);
 };
 
-export const createPondok = async (pondokData: Omit<Pondok, 'id'>): Promise<Pondok | null> => {
+export const createPondok = async (pondokData: any) => {
   try {
     const { data, error } = await supabase
       .from('pondok')
@@ -454,10 +454,11 @@ export const createPondok = async (pondokData: Omit<Pondok, 'id'>): Promise<Pond
       .single();
     
     if (error) throw error;
+    
     return {
       ...data,
       jenis: data.jenis as PondokJenis
-    } as Pondok;
+    };
   } catch (error) {
     console.error('Error creating pondok:', error);
     return null;

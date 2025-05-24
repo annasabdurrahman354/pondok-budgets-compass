@@ -3,6 +3,7 @@ import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 // Import your page components here
 import Index from "@/pages/Index";
@@ -43,34 +44,36 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/login" element={<Login />} />
-          
-          {/* Admin Pusat Routes */}
-          <Route path="/admin-pusat/dashboard" element={<AdminPusatDashboard />} />
-          <Route path="/admin-pusat/periode" element={<PeriodePage />} />
-          <Route path="/admin-pusat/pondok" element={<PondokPage />} />
-          <Route path="/admin-pusat/pondok/create" element={<PondokCreatePage />} />
-          <Route path="/admin-pusat/pondok/:id/edit" element={<PondokEditPage />} />
-          <Route path="/admin-pusat/rab" element={<AdminPusatRABPage />} />
-          <Route path="/admin-pusat/rab/:id" element={<AdminPusatRABDetailPage />} />
-          <Route path="/admin-pusat/lpj" element={<AdminPusatLPJPage />} />
-          <Route path="/admin-pusat/lpj/:id" element={<AdminPusatLPJDetailPage />} />
-          
-          {/* Admin Pondok Routes */}
-          <Route path="/admin-pondok/dashboard" element={<AdminPondokDashboard />} />
-          <Route path="/admin-pondok/rab" element={<AdminPondokRABPage />} />
-          <Route path="/admin-pondok/rab/create" element={<CreateRABPage />} />
-          <Route path="/admin-pondok/rab/:id" element={<AdminPondokRABDetailPage />} />
-          <Route path="/admin-pondok/lpj" element={<AdminPondokLPJPage />} />
-          <Route path="/admin-pondok/lpj/create" element={<CreateLPJPage />} />
-          <Route path="/admin-pondok/lpj/:id" element={<AdminPondokLPJDetailPage />} />
-          <Route path="/admin-pondok/akun" element={<AkunPage />} />
-          
-          {/* 404 Route */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/login" element={<Login />} />
+            
+            {/* Admin Pusat Routes */}
+            <Route path="/admin-pusat/dashboard" element={<AdminPusatDashboard />} />
+            <Route path="/admin-pusat/periode" element={<PeriodePage />} />
+            <Route path="/admin-pusat/pondok" element={<PondokPage />} />
+            <Route path="/admin-pusat/pondok/create" element={<PondokCreatePage />} />
+            <Route path="/admin-pusat/pondok/:id/edit" element={<PondokEditPage />} />
+            <Route path="/admin-pusat/rab" element={<AdminPusatRABPage />} />
+            <Route path="/admin-pusat/rab/:id" element={<AdminPusatRABDetailPage />} />
+            <Route path="/admin-pusat/lpj" element={<AdminPusatLPJPage />} />
+            <Route path="/admin-pusat/lpj/:id" element={<AdminPusatLPJDetailPage />} />
+            
+            {/* Admin Pondok Routes */}
+            <Route path="/admin-pondok/dashboard" element={<AdminPondokDashboard />} />
+            <Route path="/admin-pondok/rab" element={<AdminPondokRABPage />} />
+            <Route path="/admin-pondok/rab/create" element={<CreateRABPage />} />
+            <Route path="/admin-pondok/rab/:id" element={<AdminPondokRABDetailPage />} />
+            <Route path="/admin-pondok/lpj" element={<AdminPondokLPJPage />} />
+            <Route path="/admin-pondok/lpj/create" element={<CreateLPJPage />} />
+            <Route path="/admin-pondok/lpj/:id" element={<AdminPondokLPJDetailPage />} />
+            <Route path="/admin-pondok/akun" element={<AkunPage />} />
+            
+            {/* 404 Route */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
         <Toaster />
       </Router>
     </QueryClientProvider>
