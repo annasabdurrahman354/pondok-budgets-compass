@@ -5,16 +5,17 @@ import { DocumentStatus, RAB, LPJ, Pondok, Periode } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Plus } from "lucide-react";
+import { Eye, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  ResponsiveTable,
+  ResponsiveTableBody,
+  ResponsiveTableCell,
+  ResponsiveTableHead,
+  ResponsiveTableHeader,
+  ResponsiveTableRow,
+} from "@/components/ui/responsive-table";
 import {
   Select,
   SelectContent,
@@ -22,7 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { fetchAllRAB, fetchAllLPJ, fetchAllPondoks, fetchCurrentPeriode } from "@/services/api";
+import { fetchAllRAB, fetchAllLPJ, fetchAllPondoks, fetchCurrentPeriode, fetchAllPeriode } from "@/services/api";
+import { toast } from "sonner";
 
 interface CombinedRABLPJTableProps {
   type: 'rab' | 'lpj';
@@ -36,11 +38,17 @@ interface CombinedData {
 
 export const CombinedRABLPJTable: React.FC<CombinedRABLPJTableProps> = ({ type }) => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [selectedPeriode, setSelectedPeriode] = useState<string>("");
 
   const { data: currentPeriode } = useQuery({
     queryKey: ['currentPeriode'],
     queryFn: fetchCurrentPeriode
+  });
+
+  const { data: allPeriodes = [] } = useQuery({
+    queryKey: ['allPeriodes'],
+    queryFn: fetchAllPeriode
   });
 
   const { data: rabs = [] } = useQuery({
@@ -104,77 +112,192 @@ export const CombinedRABLPJTable: React.FC<CombinedRABLPJTableProps> = ({ type }
     }
   };
 
+  const handleExportExcel = () => {
+    const selectedPeriodeName = allPeriodes.find(p => p.id === selectedPeriode);
+    if (!selectedPeriodeName) {
+      toast.error("Pilih periode terlebih dahulu");
+      return;
+    }
+
+    // Create CSV data
+    const headers = [
+      'Nama Pondok',
+      'Jenis',
+      `Status ${type.toUpperCase()}`,
+      'Tanggal Pengajuan',
+      ...(type === 'rab' ? ['Saldo Awal', 'Rencana Pemasukan', 'Rencana Pengeluaran'] : ['Realisasi Pemasukan', 'Realisasi Pengeluaran', 'Sisa Saldo'])
+    ];
+
+    const csvContent = [
+      headers.join(','),
+      ...combinedData.map(data => [
+        `"${data.pondok.nama}"`,
+        `"${data.pondok.jenis?.toUpperCase() || ''}"`,
+        `"${data.document?.status || 'Belum Dibuat'}"`,
+        `"${data.document?.submitted_at ? new Date(data.document.submitted_at).toLocaleDateString("id-ID") : '-'}"`,
+        ...(type === 'rab' ? [
+          data.document ? (data.document as RAB).saldo_awal || 0 : 0,
+          data.document ? (data.document as RAB).rencana_pemasukan || 0 : 0,
+          data.document ? (data.document as RAB).rencana_pengeluaran || 0 : 0
+        ] : [
+          data.document ? (data.document as LPJ).realisasi_pemasukan || 0 : 0,
+          data.document ? (data.document as LPJ).realisasi_pengeluaran || 0 : 0,
+          data.document ? (data.document as LPJ).sisa_saldo || 0 : 0
+        ])
+      ].join(','))
+    ].join('\n');
+
+    // Download CSV
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${type.toUpperCase()}_${selectedPeriodeName.tahun}_${selectedPeriodeName.bulan}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast.success(`Export ${type.toUpperCase()} berhasil`);
+  };
+
   return (
     <div className="space-y-4">
       {/* Period Filter */}
-      <div className="flex items-center gap-4">
-        <label className="text-sm font-medium">Periode:</label>
-        <Select value={selectedPeriode} onValueChange={setSelectedPeriode}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Pilih periode" />
-          </SelectTrigger>
-          <SelectContent>
-            {currentPeriode && (
-              <SelectItem value={currentPeriode.id}>
-                {currentPeriode.tahun}-{String(currentPeriode.bulan).padStart(2, '0')} (Terkini)
-              </SelectItem>
-            )}
-          </SelectContent>
-        </Select>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium">Periode:</label>
+          <Select value={selectedPeriode} onValueChange={setSelectedPeriode}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Pilih periode" />
+            </SelectTrigger>
+            <SelectContent>
+              {allPeriodes.map((periode) => (
+                <SelectItem key={periode.id} value={periode.id}>
+                  {periode.tahun}-{String(periode.bulan).padStart(2, '0')}
+                  {currentPeriode?.id === periode.id && ' (Terkini)'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <Button
+          onClick={handleExportExcel}
+          disabled={!selectedPeriode}
+          variant="outline"
+          size="sm"
+        >
+          <Download className="h-4 w-4 mr-2" />
+          Export Excel
+        </Button>
       </div>
 
       {/* Data Table */}
       <div className="bg-white rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nama Pondok</TableHead>
-              <TableHead>Jenis</TableHead>
-              <TableHead>Status {type.toUpperCase()}</TableHead>
-              <TableHead>Tanggal Pengajuan</TableHead>
+        <ResponsiveTable>
+          <ResponsiveTableHeader>
+            <ResponsiveTableRow>
+              <ResponsiveTableHead>Nama Pondok</ResponsiveTableHead>
+              <ResponsiveTableHead>Jenis</ResponsiveTableHead>
+              <ResponsiveTableHead>Status {type.toUpperCase()}</ResponsiveTableHead>
+              <ResponsiveTableHead>Tanggal Pengajuan</ResponsiveTableHead>
               {type === 'rab' && (
                 <>
-                  <TableHead>Saldo Awal</TableHead>
-                  <TableHead>Rencana Pemasukan</TableHead>
-                  <TableHead>Rencana Pengeluaran</TableHead>
+                  <ResponsiveTableHead>Saldo Awal</ResponsiveTableHead>
+                  <ResponsiveTableHead>Rencana Pemasukan</ResponsiveTableHead>
+                  <ResponsiveTableHead>Rencana Pengeluaran</ResponsiveTableHead>
                 </>
               )}
               {type === 'lpj' && (
                 <>
-                  <TableHead>Realisasi Pemasukan</TableHead>
-                  <TableHead>Realisasi Pengeluaran</TableHead>
-                  <TableHead>Sisa Saldo</TableHead>
+                  <ResponsiveTableHead>Realisasi Pemasukan</ResponsiveTableHead>
+                  <ResponsiveTableHead>Realisasi Pengeluaran</ResponsiveTableHead>
+                  <ResponsiveTableHead>Sisa Saldo</ResponsiveTableHead>
                 </>
               )}
-              <TableHead className="text-right">Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+              <ResponsiveTableHead className="text-right">Aksi</ResponsiveTableHead>
+            </ResponsiveTableRow>
+          </ResponsiveTableHeader>
+          <ResponsiveTableBody>
             {combinedData.map((data) => (
-              <TableRow key={data.pondok.id}>
-                <TableCell className="font-medium">{data.pondok.nama}</TableCell>
-                <TableCell>{data.pondok.jenis?.toUpperCase()}</TableCell>
-                <TableCell>{getStatusBadge(data.document?.status)}</TableCell>
-                <TableCell>
+              <ResponsiveTableRow key={data.pondok.id} isCard={isMobile}>
+                <ResponsiveTableCell 
+                  label="Nama Pondok" 
+                  isCard={isMobile}
+                  className="font-medium"
+                >
+                  {data.pondok.nama}
+                </ResponsiveTableCell>
+                <ResponsiveTableCell 
+                  label="Jenis" 
+                  isCard={isMobile}
+                >
+                  {data.pondok.jenis?.toUpperCase()}
+                </ResponsiveTableCell>
+                <ResponsiveTableCell 
+                  label={`Status ${type.toUpperCase()}`} 
+                  isCard={isMobile}
+                >
+                  {getStatusBadge(data.document?.status)}
+                </ResponsiveTableCell>
+                <ResponsiveTableCell 
+                  label="Tanggal Pengajuan" 
+                  isCard={isMobile}
+                >
                   {data.document?.submitted_at
                     ? new Date(data.document.submitted_at).toLocaleDateString("id-ID")
                     : "-"}
-                </TableCell>
+                </ResponsiveTableCell>
                 {type === 'rab' && (
                   <>
-                    <TableCell>{data.document ? formatCurrency((data.document as RAB).saldo_awal || 0) : "-"}</TableCell>
-                    <TableCell>{data.document ? formatCurrency((data.document as RAB).rencana_pemasukan || 0) : "-"}</TableCell>
-                    <TableCell>{data.document ? formatCurrency((data.document as RAB).rencana_pengeluaran || 0) : "-"}</TableCell>
+                    <ResponsiveTableCell 
+                      label="Saldo Awal" 
+                      isCard={isMobile}
+                    >
+                      {data.document ? formatCurrency((data.document as RAB).saldo_awal || 0) : "-"}
+                    </ResponsiveTableCell>
+                    <ResponsiveTableCell 
+                      label="Rencana Pemasukan" 
+                      isCard={isMobile}
+                    >
+                      {data.document ? formatCurrency((data.document as RAB).rencana_pemasukan || 0) : "-"}
+                    </ResponsiveTableCell>
+                    <ResponsiveTableCell 
+                      label="Rencana Pengeluaran" 
+                      isCard={isMobile}
+                    >
+                      {data.document ? formatCurrency((data.document as RAB).rencana_pengeluaran || 0) : "-"}
+                    </ResponsiveTableCell>
                   </>
                 )}
                 {type === 'lpj' && (
                   <>
-                    <TableCell>{data.document ? formatCurrency((data.document as LPJ).realisasi_pemasukan || 0) : "-"}</TableCell>
-                    <TableCell>{data.document ? formatCurrency((data.document as LPJ).realisasi_pengeluaran || 0) : "-"}</TableCell>
-                    <TableCell>{data.document ? formatCurrency((data.document as LPJ).sisa_saldo || 0) : "-"}</TableCell>
+                    <ResponsiveTableCell 
+                      label="Realisasi Pemasukan" 
+                      isCard={isMobile}
+                    >
+                      {data.document ? formatCurrency((data.document as LPJ).realisasi_pemasukan || 0) : "-"}
+                    </ResponsiveTableCell>
+                    <ResponsiveTableCell 
+                      label="Realisasi Pengeluaran" 
+                      isCard={isMobile}
+                    >
+                      {data.document ? formatCurrency((data.document as LPJ).realisasi_pengeluaran || 0) : "-"}
+                    </ResponsiveTableCell>
+                    <ResponsiveTableCell 
+                      label="Sisa Saldo" 
+                      isCard={isMobile}
+                    >
+                      {data.document ? formatCurrency((data.document as LPJ).sisa_saldo || 0) : "-"}
+                    </ResponsiveTableCell>
                   </>
                 )}
-                <TableCell className="text-right">
+                <ResponsiveTableCell 
+                  label="Aksi" 
+                  isCard={isMobile}
+                  className={isMobile ? "justify-center" : "text-right"}
+                >
                   {data.hasDocument ? (
                     <Button
                       variant="ghost"
@@ -188,11 +311,11 @@ export const CombinedRABLPJTable: React.FC<CombinedRABLPJTableProps> = ({ type }
                       Belum Tersedia
                     </Badge>
                   )}
-                </TableCell>
-              </TableRow>
+                </ResponsiveTableCell>
+              </ResponsiveTableRow>
             ))}
-          </TableBody>
-        </Table>
+          </ResponsiveTableBody>
+        </ResponsiveTable>
       </div>
     </div>
   );

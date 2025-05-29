@@ -6,15 +6,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
+  ResponsiveTable,
+  ResponsiveTableBody,
+  ResponsiveTableCell,
+  ResponsiveTableHead,
+  ResponsiveTableHeader,
+  ResponsiveTableRow,
+} from "@/components/ui/responsive-table";
 
 interface RABTableProps {
   data?: RAB[];
@@ -25,7 +25,6 @@ interface RABTableProps {
   onSelect?: (rab: RAB) => void;
   onApprove?: (rab: RAB) => void;
   onRevision?: (rab: RAB) => void;
-  // Adding onView prop for backward compatibility
   onView?: (rab: RAB) => void;
 }
 
@@ -41,8 +40,8 @@ export const RABTable: React.FC<RABTableProps> = ({
   onView,
 }) => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   
-  // Handle both data and rabs props for backward compatibility
   const items = data || rabs || [];
 
   if (isLoading) {
@@ -61,7 +60,6 @@ export const RABTable: React.FC<RABTableProps> = ({
     );
   }
 
-  // Handle view action based on different props
   const handleViewAction = (rab: RAB) => {
     if (viewOnly) {
       navigate(`/admin-pondok/rab/${rab.id}`);
@@ -75,60 +73,91 @@ export const RABTable: React.FC<RABTableProps> = ({
   return (
     <div className="w-full">
       {title && <h3 className="text-lg font-medium mb-3">{title}</h3>}
-      <div className="w-full overflow-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="whitespace-nowrap">Periode</TableHead>
-              <TableHead className="whitespace-nowrap">Pondok</TableHead>
-              <TableHead className="whitespace-nowrap">Status</TableHead>
-              <TableHead className="whitespace-nowrap">Tanggal Pengajuan</TableHead>
-              <TableHead className="whitespace-nowrap">Saldo Awal</TableHead>
-              <TableHead className="whitespace-nowrap">Rencana Pemasukan</TableHead>
-              <TableHead className="whitespace-nowrap">Rencana Pengeluaran</TableHead>
-              <TableHead className="whitespace-nowrap text-right">Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.map((rab) => (
-              <TableRow key={rab.id}>
-                <TableCell className="whitespace-nowrap">
-                  {rab.periode ? `${rab.periode.tahun}-${String(rab.periode.bulan).padStart(2, '0')}` : "-"}
-                </TableCell>
-                <TableCell className="whitespace-nowrap">{rab.pondok?.nama || "-"}</TableCell>
-                <TableCell className="whitespace-nowrap">
-                  {rab.status === DocumentStatus.DIAJUKAN ? (
-                    <Badge variant="outline">Diajukan</Badge>
-                  ) : rab.status === DocumentStatus.DITERIMA ? (
-                    <Badge className="bg-green-100 text-green-800 border-green-300">
-                      Diterima
-                    </Badge>
-                  ) : (
-                    <Badge variant="destructive">Revisi</Badge>
-                  )}
-                </TableCell>
-                <TableCell className="whitespace-nowrap">
-                  {rab.submitted_at
-                    ? new Date(rab.submitted_at).toLocaleDateString("id-ID")
-                    : "-"}
-                </TableCell>
-                <TableCell className="whitespace-nowrap">{formatCurrency(rab.saldo_awal || 0)}</TableCell>
-                <TableCell className="whitespace-nowrap">{formatCurrency(rab.rencana_pemasukan || 0)}</TableCell>
-                <TableCell className="whitespace-nowrap">{formatCurrency(rab.rencana_pengeluaran || 0)}</TableCell>
-                <TableCell className="whitespace-nowrap text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleViewAction(rab)}
-                  >
-                    <Eye className="h-4 w-4 mr-1" /> Detail
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <ResponsiveTable>
+        <ResponsiveTableHeader>
+          <ResponsiveTableRow>
+            <ResponsiveTableHead>Periode</ResponsiveTableHead>
+            <ResponsiveTableHead>Pondok</ResponsiveTableHead>
+            <ResponsiveTableHead>Status</ResponsiveTableHead>
+            <ResponsiveTableHead>Tanggal Pengajuan</ResponsiveTableHead>
+            <ResponsiveTableHead>Saldo Awal</ResponsiveTableHead>
+            <ResponsiveTableHead>Rencana Pemasukan</ResponsiveTableHead>
+            <ResponsiveTableHead>Rencana Pengeluaran</ResponsiveTableHead>
+            <ResponsiveTableHead className="text-right">Aksi</ResponsiveTableHead>
+          </ResponsiveTableRow>
+        </ResponsiveTableHeader>
+        <ResponsiveTableBody>
+          {items.map((rab) => (
+            <ResponsiveTableRow key={rab.id} isCard={isMobile}>
+              <ResponsiveTableCell 
+                label="Periode" 
+                isCard={isMobile}
+              >
+                {rab.periode ? `${rab.periode.tahun}-${String(rab.periode.bulan).padStart(2, '0')}` : "-"}
+              </ResponsiveTableCell>
+              <ResponsiveTableCell 
+                label="Pondok" 
+                isCard={isMobile}
+              >
+                {rab.pondok?.nama || "-"}
+              </ResponsiveTableCell>
+              <ResponsiveTableCell 
+                label="Status" 
+                isCard={isMobile}
+              >
+                {rab.status === DocumentStatus.DIAJUKAN ? (
+                  <Badge variant="outline">Diajukan</Badge>
+                ) : rab.status === DocumentStatus.DITERIMA ? (
+                  <Badge className="bg-green-100 text-green-800 border-green-300">
+                    Diterima
+                  </Badge>
+                ) : (
+                  <Badge variant="destructive">Revisi</Badge>
+                )}
+              </ResponsiveTableCell>
+              <ResponsiveTableCell 
+                label="Tanggal Pengajuan" 
+                isCard={isMobile}
+              >
+                {rab.submitted_at
+                  ? new Date(rab.submitted_at).toLocaleDateString("id-ID")
+                  : "-"}
+              </ResponsiveTableCell>
+              <ResponsiveTableCell 
+                label="Saldo Awal" 
+                isCard={isMobile}
+              >
+                {formatCurrency(rab.saldo_awal || 0)}
+              </ResponsiveTableCell>
+              <ResponsiveTableCell 
+                label="Rencana Pemasukan" 
+                isCard={isMobile}
+              >
+                {formatCurrency(rab.rencana_pemasukan || 0)}
+              </ResponsiveTableCell>
+              <ResponsiveTableCell 
+                label="Rencana Pengeluaran" 
+                isCard={isMobile}
+              >
+                {formatCurrency(rab.rencana_pengeluaran || 0)}
+              </ResponsiveTableCell>
+              <ResponsiveTableCell 
+                label="Aksi" 
+                isCard={isMobile}
+                className={isMobile ? "justify-center" : "text-right"}
+              >
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleViewAction(rab)}
+                >
+                  <Eye className="h-4 w-4 mr-1" /> Detail
+                </Button>
+              </ResponsiveTableCell>
+            </ResponsiveTableRow>
+          ))}
+        </ResponsiveTableBody>
+      </ResponsiveTable>
     </div>
   );
 };
