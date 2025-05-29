@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { AdminPusatLayout } from "@/components/layout/AdminPusatLayout";
 import {
@@ -31,9 +30,20 @@ import {
   AccordionItem, 
   AccordionTrigger 
 } from "@/components/ui/accordion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { PengurusForm } from "@/components/pondok/PengurusForm";
 import { PondokJenis, PengurusJabatan, UserRole, Pengurus } from "@/types";
-import { ArrowLeft, Plus, User } from "lucide-react";
+import { ArrowLeft, Plus, User, Edit, Trash2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,6 +63,7 @@ interface AdminFormData {
   nama: string;
   email: string;
   nomor_telepon: string;
+  password?: string;
 }
 
 const PondokEditPage: React.FC = () => {
@@ -82,7 +93,9 @@ const PondokEditPage: React.FC = () => {
     nama: "",
     email: "",
     nomor_telepon: "",
+    password: "",
   });
+  const [editingAdmin, setEditingAdmin] = useState<AdminFormData | null>(null);
   const [activeTab, setActiveTab] = useState("info");
 
   // Fetch pondok data
@@ -229,13 +242,10 @@ const PondokEditPage: React.FC = () => {
     mutationFn: async (data: AdminFormData) => {
       if (!id) throw new Error("ID not found");
       
-      // Create a random password for the user
-      const password = Math.random().toString(36).slice(-8);
-      
-      // Create user in auth
+      // Create user in auth with custom password
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
-        password,
+        password: data.password || Math.random().toString(36).slice(-8),
       });
       
       if (authError) throw authError;
@@ -255,7 +265,7 @@ const PondokEditPage: React.FC = () => {
       
       if (profileError) throw profileError;
       
-      return { user: profileData[0], password };
+      return { user: profileData[0], password: data.password };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
@@ -263,8 +273,78 @@ const PondokEditPage: React.FC = () => {
         nama: "",
         email: "",
         nomor_telepon: "",
+        password: "",
       });
-      toast.success(`Admin baru berhasil ditambahkan. Password: ${data.password}`);
+      toast.success(`Admin baru berhasil ditambahkan dengan password: ${data.password}`);
+    },
+    onError: (error) => {
+      toast.error(`Error: ${error.message}`);
+    }
+  });
+
+  // Update admin user mutation
+  const updateAdminMutation = useMutation({
+    mutationFn: async (data: AdminFormData) => {
+      if (!data.id) throw new Error("Admin ID not found");
+      
+      // Update profile
+      const { error: profileError } = await supabase
+        .from('user_profile')
+        .update({
+          nama: data.nama,
+          email: data.email,
+          nomor_telepon: data.nomor_telepon,
+        })
+        .eq('id', data.id);
+      
+      if (profileError) throw profileError;
+
+      // Update auth email if changed
+      const { error: authError } = await supabase.auth.updateUser({
+        email: data.email,
+        ...(data.password && { password: data.password })
+      });
+      
+      if (authError && !authError.message.includes('User not found')) {
+        throw authError;
+      }
+      
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+      setEditingAdmin(null);
+      toast.success("Data admin berhasil diperbarui");
+    },
+    onError: (error) => {
+      toast.error(`Error: ${error.message}`);
+    }
+  });
+
+  // Delete admin user mutation
+  const deleteAdminMutation = useMutation({
+    mutationFn: async (adminId: string) => {
+      // Delete profile first
+      const { error: profileError } = await supabase
+        .from('user_profile')
+        .delete()
+        .eq('id', adminId);
+      
+      if (profileError) throw profileError;
+
+      // Delete auth user (this might fail if user doesn't exist in auth)
+      const { error: authError } = await supabase.auth.admin.deleteUser(adminId);
+      
+      // Don't throw error if user not found in auth
+      if (authError && !authError.message.includes('User not found')) {
+        console.warn('Auth user deletion failed:', authError);
+      }
+      
+      return adminId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+      toast.success("Admin berhasil dihapus");
     },
     onError: (error) => {
       toast.error(`Error: ${error.message}`);
@@ -328,18 +408,44 @@ const PondokEditPage: React.FC = () => {
   };
 
   // Handle admin changes
-  const handleAdminInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleNewAdminInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setNewAdmin(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleEditAdminInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setEditingAdmin(prev => prev ? { ...prev, [name]: value } : null);
+  };
+
   const handleAddAdmin = () => {
-    if (newAdmin.nama === "" || newAdmin.email === "") {
-      toast.error("Nama dan email admin tidak boleh kosong");
+    if (newAdmin.nama === "" || newAdmin.email === "" || newAdmin.password === "") {
+      toast.error("Nama, email, dan password admin tidak boleh kosong");
       return;
     }
     
     addAdminMutation.mutate(newAdmin);
+  };
+
+  const handleUpdateAdmin = () => {
+    if (!editingAdmin || editingAdmin.nama === "" || editingAdmin.email === "") {
+      toast.error("Nama dan email admin tidak boleh kosong");
+      return;
+    }
+    
+    updateAdminMutation.mutate(editingAdmin);
+  };
+
+  const handleDeleteAdmin = (adminId: string) => {
+    deleteAdminMutation.mutate(adminId);
+  };
+
+  const startEditingAdmin = (admin: AdminFormData) => {
+    setEditingAdmin({ ...admin, password: "" });
+  };
+
+  const cancelEditingAdmin = () => {
+    setEditingAdmin(null);
   };
 
   // Handle form submission
@@ -380,8 +486,8 @@ const PondokEditPage: React.FC = () => {
       </div>
 
       <div className="flex justify-between mb-6">
-        <h2 className="text-2xl font-bold mb-4">Edit Pondok: {pondok.nama}</h2>
-        {!pondok.accepted_at && (
+        <h2 className="text-2xl font-bold mb-4">Edit Pondok: {pondok?.nama}</h2>
+        {pondok && !pondok.accepted_at && (
           <Button 
             onClick={() => verifyPondokMutation.mutate()}
             className="bg-green-600 hover:bg-green-700"
@@ -614,14 +720,119 @@ const PondokEditPage: React.FC = () => {
 
                 {adminList.map((admin, index) => (
                   <div key={index} className="p-4 border rounded-lg">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <User className="h-5 w-5 text-muted-foreground" />
-                      <h3 className="font-medium">{admin.nama}</h3>
-                    </div>
-                    <div className="pl-7 text-sm space-y-1">
-                      <p>Email: {admin.email}</p>
-                      {admin.nomor_telepon && <p>Telepon: {admin.nomor_telepon}</p>}
-                    </div>
+                    {editingAdmin?.id === admin.id ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center space-x-2 mb-4">
+                          <User className="h-5 w-5 text-muted-foreground" />
+                          <h3 className="font-medium">Edit Admin</h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor={`edit-nama-${index}`}>Nama</Label>
+                            <Input
+                              id={`edit-nama-${index}`}
+                              name="nama"
+                              value={editingAdmin.nama}
+                              onChange={handleEditAdminInputChange}
+                              placeholder="Nama lengkap admin"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`edit-email-${index}`}>Email</Label>
+                            <Input
+                              id={`edit-email-${index}`}
+                              name="email"
+                              type="email"
+                              value={editingAdmin.email}
+                              onChange={handleEditAdminInputChange}
+                              placeholder="Email admin"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`edit-nomor-telepon-${index}`}>Nomor Telepon</Label>
+                            <Input
+                              id={`edit-nomor-telepon-${index}`}
+                              name="nomor_telepon"
+                              value={editingAdmin.nomor_telepon}
+                              onChange={handleEditAdminInputChange}
+                              placeholder="Nomor telepon admin"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`edit-password-${index}`}>Password Baru (Opsional)</Label>
+                            <Input
+                              id={`edit-password-${index}`}
+                              name="password"
+                              type="password"
+                              value={editingAdmin.password || ""}
+                              onChange={handleEditAdminInputChange}
+                              placeholder="Biarkan kosong jika tidak ingin mengubah"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-end space-x-2">
+                          <Button
+                            variant="outline"
+                            onClick={cancelEditingAdmin}
+                          >
+                            Batal
+                          </Button>
+                          <Button
+                            onClick={handleUpdateAdmin}
+                            disabled={updateAdminMutation.isPending}
+                          >
+                            {updateAdminMutation.isPending ? "Menyimpan..." : "Simpan"}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center space-x-2">
+                            <User className="h-5 w-5 text-muted-foreground" />
+                            <h3 className="font-medium">{admin.nama}</h3>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => startEditingAdmin(admin)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Hapus Admin</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Apakah Anda yakin ingin menghapus admin {admin.nama}? 
+                                    Tindakan ini tidak dapat dibatalkan.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Batal</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => admin.id && handleDeleteAdmin(admin.id)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    Hapus
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </div>
+                        <div className="pl-7 text-sm space-y-1">
+                          <p>Email: {admin.email}</p>
+                          {admin.nomor_telepon && <p>Telepon: {admin.nomor_telepon}</p>}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -629,36 +840,49 @@ const PondokEditPage: React.FC = () => {
               <div className="border-t pt-6">
                 <h3 className="text-lg font-medium mb-4">Tambah Admin Baru</h3>
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-nama">Nama Admin</Label>
-                    <Input
-                      id="admin-nama"
-                      name="nama"
-                      value={newAdmin.nama}
-                      onChange={handleAdminInputChange}
-                      placeholder="Nama lengkap admin"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-email">Email</Label>
-                    <Input
-                      id="admin-email"
-                      name="email"
-                      type="email"
-                      value={newAdmin.email}
-                      onChange={handleAdminInputChange}
-                      placeholder="Email admin"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-nomor-telepon">Nomor Telepon</Label>
-                    <Input
-                      id="admin-nomor-telepon"
-                      name="nomor_telepon"
-                      value={newAdmin.nomor_telepon}
-                      onChange={handleAdminInputChange}
-                      placeholder="Nomor telepon admin"
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="admin-nama">Nama Admin</Label>
+                      <Input
+                        id="admin-nama"
+                        name="nama"
+                        value={newAdmin.nama}
+                        onChange={handleNewAdminInputChange}
+                        placeholder="Nama lengkap admin"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="admin-email">Email</Label>
+                      <Input
+                        id="admin-email"
+                        name="email"
+                        type="email"
+                        value={newAdmin.email}
+                        onChange={handleNewAdminInputChange}
+                        placeholder="Email admin"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="admin-nomor-telepon">Nomor Telepon</Label>
+                      <Input
+                        id="admin-nomor-telepon"
+                        name="nomor_telepon"
+                        value={newAdmin.nomor_telepon}
+                        onChange={handleNewAdminInputChange}
+                        placeholder="Nomor telepon admin"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="admin-password">Password</Label>
+                      <Input
+                        id="admin-password"
+                        name="password"
+                        type="password"
+                        value={newAdmin.password}
+                        onChange={handleNewAdminInputChange}
+                        placeholder="Password untuk admin"
+                      />
+                    </div>
                   </div>
                   <div className="flex justify-end">
                     <Button
