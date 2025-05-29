@@ -1,312 +1,225 @@
 
 import React from "react";
 import { AdminPondokLayout } from "@/components/layout/AdminPondokLayout";
-import { PeriodInfo } from "@/components/dashboard/PeriodInfo";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { StatCard } from "@/components/dashboard/StatCard";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  DocumentStatus,
-  LPJ,
-  Pondok,
-  RAB,
-} from "@/types";
-import { formatCurrency } from "@/lib/utils";
-import { AlertTriangle, InfoIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchCurrentPeriode, fetchPondok, fetchRABsByPondok, fetchLPJsByPondok } from "@/services/api";
-import { Link } from "react-router-dom";
+import { fetchRABsByPondok, fetchLPJsByPondok, fetchCurrentPeriode } from "@/services/api";
+import { DocumentStatus } from "@/types";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { FileText, BookOpen, Clock, CheckCircle, XCircle, TrendingUp } from "lucide-react";
 
-const PondokDashboard: React.FC = () => {
+const AdminPondokDashboard: React.FC = () => {
   const { user } = useAuth();
+  const pondokId = user?.pondok_id;
 
-  // Fetch current period
-  const { data: currentPeriode, isLoading: isLoadingPeriode } = useQuery({
+  const { data: rabs = [] } = useQuery({
+    queryKey: ['rabs', pondokId],
+    queryFn: () => pondokId ? fetchRABsByPondok(pondokId) : Promise.resolve([]),
+    enabled: !!pondokId
+  });
+
+  const { data: lpjs = [] } = useQuery({
+    queryKey: ['lpjs', pondokId],
+    queryFn: () => pondokId ? fetchLPJsByPondok(pondokId) : Promise.resolve([]),
+    enabled: !!pondokId
+  });
+
+  const { data: currentPeriode } = useQuery({
     queryKey: ['currentPeriode'],
     queryFn: fetchCurrentPeriode
   });
 
-  // Fetch pondok data
-  const { data: pondok, isLoading: isLoadingPondok } = useQuery({
-    queryKey: ['pondok', user?.pondok_id],
-    queryFn: () => user?.pondok_id ? fetchPondok(user.pondok_id) : Promise.resolve(null),
-    enabled: !!user?.pondok_id,
-  });
+  // Calculate statistics
+  const totalRABs = rabs.length;
+  const totalLPJs = lpjs.length;
+  const approvedRABs = rabs.filter(rab => rab.status === DocumentStatus.DITERIMA).length;
+  const approvedLPJs = lpjs.filter(lpj => lpj.status === DocumentStatus.DITERIMA).length;
 
-  // Fetch RAB for current period and pondok
-  const { data: rabs = [], isLoading: isLoadingRABs } = useQuery({
-    queryKey: ['rabs', user?.pondok_id, currentPeriode?.id],
-    queryFn: () => user?.pondok_id && currentPeriode?.id ? 
-      fetchRABsByPondok(user.pondok_id).then(allRabs => 
-        allRabs.filter(rab => rab.periode_id === currentPeriode.id)
-      ) : Promise.resolve([]),
-    enabled: !!user?.pondok_id && !!currentPeriode?.id,
-  });
+  // Status distribution data for charts
+  const rabStatusData = [
+    { name: 'Diajukan', value: rabs.filter(r => r.status === DocumentStatus.DIAJUKAN).length, color: '#FFA726' },
+    { name: 'Diterima', value: rabs.filter(r => r.status === DocumentStatus.DITERIMA).length, color: '#66BB6A' },
+    { name: 'Revisi', value: rabs.filter(r => r.status === DocumentStatus.REVISI).length, color: '#EF5350' },
+  ];
 
-  // Fetch LPJ for current period and pondok
-  const { data: lpjs = [], isLoading: isLoadingLPJs } = useQuery({
-    queryKey: ['lpjs', user?.pondok_id, currentPeriode?.id],
-    queryFn: () => user?.pondok_id && currentPeriode?.id ? 
-      fetchLPJsByPondok(user.pondok_id).then(allLpjs => 
-        allLpjs.filter(lpj => lpj.periode_id === currentPeriode.id)
-      ) : Promise.resolve([]),
-    enabled: !!user?.pondok_id && !!currentPeriode?.id,
-  });
+  const lpjStatusData = [
+    { name: 'Diajukan', value: lpjs.filter(l => l.status === DocumentStatus.DIAJUKAN).length, color: '#FFA726' },
+    { name: 'Diterima', value: lpjs.filter(l => l.status === DocumentStatus.DITERIMA).length, color: '#66BB6A' },
+    { name: 'Revisi', value: lpjs.filter(l => l.status === DocumentStatus.REVISI).length, color: '#EF5350' },
+  ];
 
-  // Get current RAB and LPJ for this period
-  const currentRAB = rabs.length > 0 ? rabs[0] : null;
-  const currentLPJ = lpjs.length > 0 ? lpjs[0] : null;
-  
-  const isVerified = pondok?.accepted_at ? true : false;
-  const isLoading = isLoadingPeriode || isLoadingPondok || isLoadingRABs || isLoadingLPJs;
-
-  if (isLoading) {
-    return (
-      <AdminPondokLayout>
-        <div className="flex justify-center items-center h-64">
-          <p>Memuat data...</p>
-        </div>
-      </AdminPondokLayout>
-    );
-  }
-
-  if (!currentPeriode) {
-    return (
-      <AdminPondokLayout>
-        <div className="flex flex-col items-center justify-center h-64 space-y-4">
-          <p className="text-lg">Tidak ada periode aktif saat ini</p>
-          <p className="text-muted-foreground">Silakan hubungi admin pusat</p>
-        </div>
-      </AdminPondokLayout>
-    );
-  }
-
-  const rabStatus = isVerified ? (
-    <Card>
-      <CardHeader>
-        <CardTitle>RAB Periode Ini</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {!currentRAB ? (
-          <div className="text-center py-4">
-            <p className="text-muted-foreground mb-4">Anda belum membuat RAB untuk periode ini</p>
-            <Button asChild>
-              <Link to="/admin-pondok/rab">Buat RAB</Link>
-            </Button>
-          </div>
-        ) : (
-          <dl className="grid grid-cols-2 gap-4">
-            <div>
-              <dt className="text-sm font-medium text-muted-foreground">Status</dt>
-              <dd className="mt-1 text-lg font-semibold">
-                {currentRAB.status === DocumentStatus.DIAJUKAN
-                  ? "Diajukan"
-                  : currentRAB.status === DocumentStatus.DITERIMA
-                  ? "Diterima"
-                  : "Revisi"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-muted-foreground">
-                Tanggal Pengajuan
-              </dt>
-              <dd className="mt-1 text-lg">
-                {currentRAB.submitted_at
-                  ? new Date(currentRAB.submitted_at).toLocaleDateString("id-ID")
-                  : "-"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-muted-foreground">
-                Saldo Awal
-              </dt>
-              <dd className="mt-1 text-lg font-semibold">
-                {formatCurrency(currentRAB.saldo_awal || 0)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-muted-foreground">
-                Rencana Pemasukan
-              </dt>
-              <dd className="mt-1 text-lg">
-                {formatCurrency(currentRAB.rencana_pemasukan || 0)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-muted-foreground">
-                Rencana Pengeluaran
-              </dt>
-              <dd className="mt-1 text-lg">
-                {formatCurrency(currentRAB.rencana_pengeluaran || 0)}
-              </dd>
-            </div>
-            <div className="col-span-2">
-              {currentRAB.status === DocumentStatus.REVISI && currentRAB.pesan_revisi && (
-                <Alert className="border-amber-500">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
-                  <AlertTitle>Revisi Diperlukan</AlertTitle>
-                  <AlertDescription>{currentRAB.pesan_revisi}</AlertDescription>
-                </Alert>
-              )}
-            </div>
-          </dl>
-        )}
-      </CardContent>
-    </Card>
-  ) : (
-    <Card>
-      <CardHeader>
-        <CardTitle>RAB Periode Ini</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Alert className="bg-amber-50 text-amber-800">
-          <InfoIcon className="h-4 w-4" />
-          <AlertTitle>Data pondok belum terverifikasi</AlertTitle>
-          <AlertDescription>
-            Mohon menunggu verifikasi data pondok oleh admin pusat sebelum
-            mengisi RAB.
-          </AlertDescription>
-        </Alert>
-      </CardContent>
-    </Card>
-  );
-
-  const lpjStatus = isVerified ? (
-    <Card>
-      <CardHeader>
-        <CardTitle>LPJ Periode Ini</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {!currentLPJ ? (
-          <div className="text-center py-4">
-            <p className="text-muted-foreground mb-4">Anda belum membuat LPJ untuk periode ini</p>
-            <Button asChild>
-              <Link to="/admin-pondok/lpj">Buat LPJ</Link>
-            </Button>
-          </div>
-        ) : (
-          <dl className="grid grid-cols-2 gap-4">
-            <div>
-              <dt className="text-sm font-medium text-muted-foreground">Status</dt>
-              <dd className="mt-1 text-lg font-semibold">
-                {currentLPJ.status === DocumentStatus.DIAJUKAN
-                  ? "Diajukan"
-                  : currentLPJ.status === DocumentStatus.DITERIMA
-                  ? "Diterima"
-                  : "Revisi"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-muted-foreground">
-                Tanggal Pengajuan
-              </dt>
-              <dd className="mt-1 text-lg">
-                {currentLPJ.submitted_at
-                  ? new Date(currentLPJ.submitted_at).toLocaleDateString("id-ID")
-                  : "-"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-muted-foreground">
-                Realisasi Pemasukan
-              </dt>
-              <dd className="mt-1 text-lg">
-                {formatCurrency(currentLPJ.realisasi_pemasukan || 0)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-muted-foreground">
-                Realisasi Pengeluaran
-              </dt>
-              <dd className="mt-1 text-lg">
-                {formatCurrency(currentLPJ.realisasi_pengeluaran || 0)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-muted-foreground">
-                Sisa Saldo
-              </dt>
-              <dd className="mt-1 text-lg font-semibold">
-                {formatCurrency(currentLPJ.sisa_saldo || 0)}
-              </dd>
-            </div>
-            <div className="col-span-2">
-              {currentLPJ.status === DocumentStatus.REVISI && currentLPJ.pesan_revisi && (
-                <Alert className="border-amber-500">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
-                  <AlertTitle>Revisi Diperlukan</AlertTitle>
-                  <AlertDescription>{currentLPJ.pesan_revisi}</AlertDescription>
-                </Alert>
-              )}
-            </div>
-          </dl>
-        )}
-      </CardContent>
-    </Card>
-  ) : (
-    <Card>
-      <CardHeader>
-        <CardTitle>LPJ Periode Ini</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Alert className="bg-amber-50 text-amber-800">
-          <InfoIcon className="h-4 w-4" />
-          <AlertTitle>Data pondok belum terverifikasi</AlertTitle>
-          <AlertDescription>
-            Mohon menunggu verifikasi data pondok oleh admin pusat sebelum
-            mengisi LPJ.
-          </AlertDescription>
-        </Alert>
-      </CardContent>
-    </Card>
-  );
+  // Monthly submission trends
+  const monthlyData = Array.from({ length: 6 }, (_, i) => {
+    const month = new Date();
+    month.setMonth(month.getMonth() - i);
+    const monthStr = month.toISOString().slice(0, 7);
+    
+    return {
+      month: month.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }),
+      RAB: rabs.filter(r => r.submitted_at?.startsWith(monthStr)).length,
+      LPJ: lpjs.filter(l => l.submitted_at?.startsWith(monthStr)).length,
+    };
+  }).reverse();
 
   return (
-    <AdminPondokLayout>
-      <div className="space-y-6">
-        {!isVerified && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Menunggu Verifikasi</AlertTitle>
-            <AlertDescription>
-              Data pondok Anda sedang menunggu verifikasi dari admin pusat.
-              Pembuatan RAB dan LPJ tidak dapat dilakukan hingga data Anda diverifikasi.
-              <div className="mt-4">
-                <Button variant="outline" size="sm" asChild>
-                  <Link to="/admin-pondok/akun">Lihat Status Verifikasi</Link>
-                </Button>
+    <AdminPondokLayout title="Dashboard">
+      <div className="space-y-8">
+        {/* Welcome Section */}
+        <div className="surface-container-low rounded-3xl p-8 border-0 shadow-md">
+          <div className="flex items-start justify-between">
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-on-surface">
+                Selamat datang, {user?.nama}
+              </h2>
+              <p className="text-on-surface-variant text-lg">
+                Kelola RAB dan LPJ pondok Anda dengan mudah
+              </p>
+              {currentPeriode && (
+                <div className="flex items-center gap-2 mt-4 px-4 py-2 bg-primary-container rounded-full w-fit">
+                  <Clock className="h-4 w-4 text-on-primary-container" />
+                  <span className="text-sm font-medium text-on-primary-container">
+                    Periode Aktif: {currentPeriode.tahun}-{currentPeriode.bulan.toString().padStart(2, '0')}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="hidden md:block">
+              <div className="w-32 h-32 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full flex items-center justify-center">
+                <TrendingUp className="h-16 w-16 text-primary" />
               </div>
-            </AlertDescription>
-          </Alert>
-        )}
+            </div>
+          </div>
+        </div>
 
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <span>Selamat Datang, {user?.nama}</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              Selamat datang di Sistem Administrasi Keuangan Pondok. Anda dapat mengelola RAB dan LPJ untuk pondok Anda di sini.
-            </p>
-          </CardContent>
-        </Card>
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard
+            title="Total RAB"
+            value={totalRABs.toString()}
+            icon={<FileText className="h-6 w-6 text-primary" />}
+            description="Rencana Anggaran Belanja"
+            className="surface-container-lowest border-0 shadow-lg"
+          />
+          <StatCard
+            title="RAB Disetujui"
+            value={approvedRABs.toString()}
+            icon={<CheckCircle className="h-6 w-6 text-green-600" />}
+            description="RAB yang telah disetujui"
+            className="surface-container-lowest border-0 shadow-lg"
+          />
+          <StatCard
+            title="Total LPJ"
+            value={totalLPJs.toString()}
+            icon={<BookOpen className="h-6 w-6 text-secondary" />}
+            description="Laporan Pertanggung Jawaban"
+            className="surface-container-lowest border-0 shadow-lg"
+          />
+          <StatCard
+            title="LPJ Disetujui"
+            value={approvedLPJs.toString()}
+            icon={<CheckCircle className="h-6 w-6 text-green-600" />}
+            description="LPJ yang telah disetujui"
+            className="surface-container-lowest border-0 shadow-lg"
+          />
+        </div>
 
-        {currentPeriode && <PeriodInfo periode={currentPeriode} />}
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Monthly Trends */}
+          <Card className="surface-container-lowest border-0 shadow-lg overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-primary/5 to-secondary/5">
+              <CardTitle className="text-xl font-semibold text-on-surface">Tren Pengajuan Bulanan</CardTitle>
+              <CardDescription className="text-on-surface-variant">
+                Jumlah RAB dan LPJ yang diajukan per bulan
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
+                  <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#FFFFFF', 
+                      border: '1px solid #E0E0E0',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                    }} 
+                  />
+                  <Bar dataKey="RAB" fill="#2196F3" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="LPJ" fill="#9C27B0" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {rabStatus}
-          {lpjStatus}
+          {/* Status Distribution */}
+          <div className="space-y-6">
+            <Card className="surface-container-lowest border-0 shadow-lg overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-tertiary/5 to-primary/5">
+                <CardTitle className="text-lg font-semibold text-on-surface">Status RAB</CardTitle>
+                <CardDescription className="text-on-surface-variant">
+                  Distribusi status RAB yang diajukan
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4">
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={rabStatusData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={40}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {rabStatusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="surface-container-lowest border-0 shadow-lg overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-secondary/5 to-tertiary/5">
+                <CardTitle className="text-lg font-semibold text-on-surface">Status LPJ</CardTitle>
+                <CardDescription className="text-on-surface-variant">
+                  Distribusi status LPJ yang diajukan
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4">
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={lpjStatusData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={40}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {lpjStatusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </AdminPondokLayout>
   );
 };
 
-export default PondokDashboard;
+export default AdminPondokDashboard;

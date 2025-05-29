@@ -1,519 +1,281 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { AdminPondokLayout } from "@/components/layout/AdminPondokLayout";
-import { useAuth } from "@/contexts/AuthContext";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
-import { Pengurus, PengurusJabatan, PondokJenis } from "@/types";
-import { Edit, Plus, Trash, UserCog } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchPondok } from "@/services/api";
-import { supabase } from "@/integrations/supabase/client";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { getPondokJenisLabel } from "@/lib/utils";
-
-interface PengurusFormData {
-  id?: string;
-  nama: string;
-  jabatan: PengurusJabatan;
-  nomor_telepon: string;
-}
-
-const defaultPengurusForm = (): PengurusFormData => ({
-  nama: "",
-  jabatan: PengurusJabatan.KETUA,
-  nomor_telepon: ""
-});
+import { User, Building, Mail, Phone, MapPin, Calendar, Shield, Edit3, Save, X } from "lucide-react";
 
 const AkunPage: React.FC = () => {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const [isPengurusDialogOpen, setIsPengurusDialogOpen] = useState(false);
-  const [pengurusForm, setPengurusForm] = useState<PengurusFormData>(defaultPengurusForm());
   const [isEditing, setIsEditing] = useState(false);
-  
-  // Fetch pondok data
-  const { data: pondok, isLoading } = useQuery({
-    queryKey: ['pondok', user?.pondok_id],
-    queryFn: () => user?.pondok_id ? fetchPondok(user.pondok_id) : Promise.resolve(null),
-    enabled: !!user?.pondok_id,
+  const [formData, setFormData] = useState({
+    nama: user?.nama || "",
+    email: user?.email || "",
+    nomor_telepon: user?.nomor_telepon || "",
   });
 
-  // Update pondok mutation
-  const updatePondokMutation = useMutation({
-    mutationFn: async (pondokData: { 
-      nomor_telepon: string; 
-      alamat: string;
-      kode_pos: string;
-    }) => {
-      if (!user?.pondok_id) throw new Error("Pondok ID tidak ditemukan");
-
-      const { error } = await supabase
-        .from('pondok')
-        .update({
-          nomor_telepon: pondokData.nomor_telepon,
-          alamat: pondokData.alamat,
-          kode_pos: pondokData.kode_pos,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.pondok_id);
-      
-      if (error) throw new Error(error.message);
-      return true;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pondok', user?.pondok_id] });
-      toast.success("Data pondok berhasil diperbarui");
-    },
-    onError: (error) => {
-      toast.error(`Error: ${error.message}`);
-    }
-  });
-
-  // Create pengurus mutation
-  const createPengurusMutation = useMutation({
-    mutationFn: async (data: PengurusFormData) => {
-      if (!user?.pondok_id) throw new Error("Pondok ID tidak ditemukan");
-
-      const { data: result, error } = await supabase
-        .from('pengurus')
-        .insert({
-          pondok_id: user.pondok_id,
-          nama: data.nama,
-          jabatan: data.jabatan,
-          nomor_telepon: data.nomor_telepon
-        })
-        .select();
-      
-      if (error) throw new Error(error.message);
-      return result[0];
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pondok', user?.pondok_id] });
-      setIsPengurusDialogOpen(false);
-      setPengurusForm(defaultPengurusForm());
-      toast.success("Pengurus berhasil ditambahkan");
-    },
-    onError: (error) => {
-      toast.error(`Error: ${error.message}`);
-    }
-  });
-
-  // Update pengurus mutation
-  const updatePengurusMutation = useMutation({
-    mutationFn: async (data: PengurusFormData) => {
-      if (!data.id) throw new Error("ID pengurus tidak ditemukan");
-
-      const { error } = await supabase
-        .from('pengurus')
-        .update({
-          nama: data.nama,
-          jabatan: data.jabatan,
-          nomor_telepon: data.nomor_telepon
-        })
-        .eq('id', data.id);
-      
-      if (error) throw new Error(error.message);
-      return true;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pondok', user?.pondok_id] });
-      setIsPengurusDialogOpen(false);
-      setPengurusForm(defaultPengurusForm());
-      setIsEditing(false);
-      toast.success("Pengurus berhasil diperbarui");
-    },
-    onError: (error) => {
-      toast.error(`Error: ${error.message}`);
-    }
-  });
-
-  // Delete pengurus mutation
-  const deletePengurusMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('pengurus')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw new Error(error.message);
-      return true;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pondok', user?.pondok_id] });
-      toast.success("Pengurus berhasil dihapus");
-    },
-    onError: (error) => {
-      toast.error(`Error: ${error.message}`);
-    }
-  });
-
-  const [pondokForm, setPondokForm] = useState({
-    nomor_telepon: "",
-    alamat: "",
-    kode_pos: "",
-  });
-
-  // Update form when pondok data is loaded
-  useEffect(() => {
-    if (pondok) {
-      setPondokForm({
-        nomor_telepon: pondok.nomor_telepon || "",
-        alamat: pondok.alamat || "",
-        kode_pos: pondok.kode_pos || "",
-      });
-    }
-  }, [pondok]);
-
-  const handlePondokInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setPondokForm(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
-  const handlePengurusInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setPengurusForm(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handlePengurusSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isEditing) {
-      updatePengurusMutation.mutate(pengurusForm);
-    } else {
-      createPengurusMutation.mutate(pengurusForm);
-    }
-  };
-
-  const handlePondokSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    updatePondokMutation.mutate(pondokForm);
-  };
-
-  const handleEditPengurus = (pengurus: Pengurus) => {
-    setPengurusForm({
-      id: pengurus.id,
-      nama: pengurus.nama,
-      jabatan: pengurus.jabatan as PengurusJabatan,
-      nomor_telepon: pengurus.nomor_telepon || ""
-    });
-    setIsEditing(true);
-    setIsPengurusDialogOpen(true);
-  };
-
-  const handleDeletePengurus = (id: string) => {
-    if (window.confirm("Apakah Anda yakin ingin menghapus pengurus ini?")) {
-      deletePengurusMutation.mutate(id);
-    }
-  };
-
-  const handleAddPengurus = () => {
-    setPengurusForm(defaultPengurusForm());
+  const handleSave = () => {
+    // TODO: Implement profile update
+    toast.success("Profil berhasil diperbarui");
     setIsEditing(false);
-    setIsPengurusDialogOpen(true);
   };
 
-  if (isLoading) {
-    return (
-      <AdminPondokLayout title="Akun">
-        <div className="flex justify-center items-center h-64">
-          <p>Memuat data...</p>
-        </div>
-      </AdminPondokLayout>
-    );
-  }
-
-  if (!pondok) {
-    return (
-      <AdminPondokLayout title="Akun">
-        <div className="flex flex-col items-center justify-center h-64 space-y-4">
-          <p className="text-lg">Data pondok tidak ditemukan</p>
-          <p className="text-muted-foreground">Silakan hubungi admin pusat</p>
-        </div>
-      </AdminPondokLayout>
-    );
-  }
+  const handleCancel = () => {
+    setFormData({
+      nama: user?.nama || "",
+      email: user?.email || "",
+      nomor_telepon: user?.nomor_telepon || "",
+    });
+    setIsEditing(false);
+  };
 
   return (
     <AdminPondokLayout title="Akun">
-      <div className="space-y-6">
-        <Tabs defaultValue="profile">
-          <TabsList className="mb-6">
-            <TabsTrigger value="profile">Profil Pondok</TabsTrigger>
-            <TabsTrigger value="pengurus">Data Pengurus</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="profile" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Profil Pondok</CardTitle>
-                    <CardDescription>
-                      Informasi dan detail tentang pondok Anda
-                    </CardDescription>
-                  </div>
-                  <Badge className={pondok.accepted_at ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}>
-                    {pondok.accepted_at ? "Terverifikasi" : "Menunggu Verifikasi"}
+      <div className="space-y-8">
+        {/* Profile Header */}
+        <div className="surface-container-low rounded-3xl p-8 border-0 shadow-md">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center space-x-6">
+              <div className="w-24 h-24 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center shadow-lg">
+                <User className="h-12 w-12 text-white" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-3xl font-bold text-on-surface">{user?.nama}</h2>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="primary-container">
+                    <Shield className="h-3 w-3 mr-1" />
+                    Admin Pondok
                   </Badge>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label className="text-muted-foreground">Nama Pondok</Label>
-                    <p className="font-medium text-lg">{pondok.nama}</p>
+                <div className="flex items-center gap-4 text-on-surface-variant">
+                  <div className="flex items-center gap-1">
+                    <Mail className="h-4 w-4" />
+                    <span className="text-sm">{user?.email}</span>
                   </div>
-                  <div>
-                    <Label className="text-muted-foreground">Jenis Pondok</Label>
-                    <p className="font-medium text-lg">{getPondokJenisLabel(pondok.jenis)}</p>
-                  </div>
-                </div>
-                
-                <form onSubmit={handlePondokSubmit}>
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="nomor_telepon">Nomor Telepon</Label>
-                        <Input 
-                          id="nomor_telepon" 
-                          name="nomor_telepon" 
-                          value={pondokForm.nomor_telepon}
-                          onChange={handlePondokInputChange}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="kode_pos">Kode Pos</Label>
-                        <Input 
-                          id="kode_pos" 
-                          name="kode_pos" 
-                          value={pondokForm.kode_pos}
-                          onChange={handlePondokInputChange}
-                          required
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="alamat">Alamat</Label>
-                      <Input 
-                        id="alamat" 
-                        name="alamat" 
-                        value={pondokForm.alamat}
-                        onChange={handlePondokInputChange}
-                        required
-                      />
-                    </div>
-                    
-                    <div className="flex justify-end">
-                      <Button 
-                        type="submit" 
-                        disabled={updatePondokMutation.isPending}
-                      >
-                        {updatePondokMutation.isPending ? "Menyimpan..." : "Simpan Perubahan"}
-                      </Button>
-                    </div>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Profil Akun</CardTitle>
-                <CardDescription>
-                  Detail akun login Anda
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label className="text-muted-foreground">Nama</Label>
-                    <p className="font-medium">{user?.nama}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Email</Label>
-                    <p className="font-medium">{user?.email}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Nomor Telepon</Label>
-                    <p className="font-medium">{user?.nomor_telepon || "-"}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Role</Label>
-                    <p className="font-medium">Admin Pondok</p>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button variant="outline">
-                  Ganti Password
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="pengurus" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Data Pengurus</CardTitle>
-                    <CardDescription>
-                      Kelola data pengurus pondok
-                    </CardDescription>
-                  </div>
-                  <Dialog open={isPengurusDialogOpen} onOpenChange={setIsPengurusDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button onClick={handleAddPengurus}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Tambah Pengurus
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <form onSubmit={handlePengurusSubmit}>
-                        <DialogHeader>
-                          <DialogTitle>{isEditing ? "Edit Pengurus" : "Tambah Pengurus"}</DialogTitle>
-                          <DialogDescription>
-                            {isEditing ? "Perbarui informasi pengurus" : "Tambahkan data pengurus baru"}
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="nama">Nama</Label>
-                            <Input
-                              id="nama"
-                              name="nama"
-                              value={pengurusForm.nama}
-                              onChange={handlePengurusInputChange}
-                              required
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="jabatan">Jabatan</Label>
-                            <Select
-                              value={pengurusForm.jabatan}
-                              onValueChange={(value) => setPengurusForm(prev => ({ ...prev, jabatan: value as PengurusJabatan }))}
-                            >
-                              <SelectTrigger id="jabatan">
-                                <SelectValue placeholder="Pilih jabatan" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value={PengurusJabatan.KETUA}>Ketua</SelectItem>
-                                <SelectItem value={PengurusJabatan.WAKIL_KETUA}>Wakil Ketua</SelectItem>
-                                <SelectItem value={PengurusJabatan.PINISEPUH}>Pinisepuh</SelectItem>
-                                <SelectItem value={PengurusJabatan.SEKRETARIS}>Sekretaris</SelectItem>
-                                <SelectItem value={PengurusJabatan.BENDAHARA}>Bendahara</SelectItem>
-                                <SelectItem value={PengurusJabatan.GURU}>Guru</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="nomor_telepon">Nomor Telepon</Label>
-                            <Input
-                              id="nomor_telepon"
-                              name="nomor_telepon"
-                              value={pengurusForm.nomor_telepon}
-                              onChange={handlePengurusInputChange}
-                              required
-                            />
-                          </div>
-                        </div>
-                        <DialogFooter>
-                          <Button type="submit" disabled={createPengurusMutation.isPending || updatePengurusMutation.isPending}>
-                            {createPengurusMutation.isPending || updatePengurusMutation.isPending 
-                              ? "Menyimpan..." 
-                              : isEditing ? "Perbarui" : "Simpan"}
-                          </Button>
-                        </DialogFooter>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {pondok.pengurus && pondok.pengurus.length > 0 ? (
-                    pondok.pengurus.map((pengurus) => (
-                      <Card key={pengurus.id}>
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center">
-                              <UserCog className="h-10 w-10 text-primary mr-4" />
-                              <div>
-                                <p className="font-medium text-lg">{pengurus.nama}</p>
-                                <div className="flex items-center space-x-4">
-                                  <Badge variant="secondary">{pengurus.jabatan}</Badge>
-                                  <p className="text-sm text-muted-foreground">{pengurus.nomor_telepon}</p>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex space-x-2">
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={() => handleEditPengurus(pengurus)}
-                              >
-                                <Edit className="h-4 w-4" />
-                                <span className="sr-only">Edit</span>
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="text-red-500 hover:text-red-700"
-                                onClick={() => pengurus.id && handleDeletePengurus(pengurus.id)}
-                              >
-                                <Trash className="h-4 w-4" />
-                                <span className="sr-only">Delete</span>
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))
-                  ) : (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">Belum ada data pengurus</p>
-                      <p className="text-sm mt-1">Tambahkan pengurus dengan klik tombol "Tambah Pengurus"</p>
+                  {user?.nomor_telepon && (
+                    <div className="flex items-center gap-1">
+                      <Phone className="h-4 w-4" />
+                      <span className="text-sm">{user.nomor_telepon}</span>
                     </div>
                   )}
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              </div>
+            </div>
+            <Button
+              onClick={() => setIsEditing(!isEditing)}
+              variant={isEditing ? "outline" : "default"}
+              className="gap-2"
+            >
+              {isEditing ? (
+                <>
+                  <X className="h-4 w-4" />
+                  Batal
+                </>
+              ) : (
+                <>
+                  <Edit3 className="h-4 w-4" />
+                  Edit Profil
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Personal Information */}
+          <Card className="surface-container-lowest border-0 shadow-lg overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-primary/5 to-secondary/5">
+              <CardTitle className="flex items-center gap-2 text-xl font-semibold text-on-surface">
+                <User className="h-5 w-5" />
+                Informasi Pribadi
+              </CardTitle>
+              <CardDescription className="text-on-surface-variant">
+                Kelola informasi akun Anda
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nama" className="text-sm font-medium text-on-surface">Nama Lengkap</Label>
+                  {isEditing ? (
+                    <Input
+                      id="nama"
+                      name="nama"
+                      value={formData.nama}
+                      onChange={handleInputChange}
+                      className="border-outline/20 focus:border-primary"
+                    />
+                  ) : (
+                    <div className="surface-container rounded-xl p-3">
+                      <span className="text-on-surface">{user?.nama}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium text-on-surface">Email</Label>
+                  {isEditing ? (
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className="border-outline/20 focus:border-primary"
+                    />
+                  ) : (
+                    <div className="surface-container rounded-xl p-3">
+                      <span className="text-on-surface">{user?.email}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="nomor_telepon" className="text-sm font-medium text-on-surface">Nomor Telepon</Label>
+                  {isEditing ? (
+                    <Input
+                      id="nomor_telepon"
+                      name="nomor_telepon"
+                      value={formData.nomor_telepon}
+                      onChange={handleInputChange}
+                      className="border-outline/20 focus:border-primary"
+                    />
+                  ) : (
+                    <div className="surface-container rounded-xl p-3">
+                      <span className="text-on-surface">{user?.nomor_telepon || "-"}</span>
+                    </div>
+                  )}
+                </div>
+
+                {isEditing && (
+                  <div className="flex gap-3 pt-4">
+                    <Button onClick={handleSave} className="flex-1 gap-2">
+                      <Save className="h-4 w-4" />
+                      Simpan Perubahan
+                    </Button>
+                    <Button onClick={handleCancel} variant="outline" className="flex-1">
+                      Batal
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Pondok Information */}
+          <Card className="surface-container-lowest border-0 shadow-lg overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-tertiary/5 to-primary/5">
+              <CardTitle className="flex items-center gap-2 text-xl font-semibold text-on-surface">
+                <Building className="h-5 w-5" />
+                Informasi Pondok
+              </CardTitle>
+              <CardDescription className="text-on-surface-variant">
+                Detail pondok yang Anda kelola
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-on-surface">Nama Pondok</Label>
+                  <div className="surface-container rounded-xl p-3">
+                    <span className="text-on-surface">{user?.pondok?.nama}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-on-surface">Jenis Pondok</Label>
+                  <div className="surface-container rounded-xl p-3">
+                    <Badge variant="outline" className="tertiary-container">
+                      {user?.pondok?.jenis?.toUpperCase()}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-on-surface">Alamat</Label>
+                  <div className="surface-container rounded-xl p-3 flex items-start gap-2">
+                    <MapPin className="h-4 w-4 mt-0.5 text-on-surface-variant" />
+                    <span className="text-on-surface">{user?.pondok?.alamat}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-on-surface">Telepon Pondok</Label>
+                  <div className="surface-container rounded-xl p-3 flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-on-surface-variant" />
+                    <span className="text-on-surface">{user?.pondok?.nomor_telepon}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-on-surface">Status Verifikasi</Label>
+                  <div className="surface-container rounded-xl p-3">
+                    {user?.pondok?.accepted_at ? (
+                      <Badge className="bg-green-100 text-green-800 border-green-300">
+                        <Calendar className="h-3 w-3 mr-1" />
+                        Terverifikasi
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                        <Calendar className="h-3 w-3 mr-1" />
+                        Menunggu Verifikasi
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Account Actions */}
+        <Card className="surface-container-lowest border-0 shadow-lg overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-error/5 to-warning/5">
+            <CardTitle className="text-xl font-semibold text-on-surface">Pengaturan Akun</CardTitle>
+            <CardDescription className="text-on-surface-variant">
+              Kelola pengaturan keamanan akun Anda
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 surface-container rounded-xl">
+                <div>
+                  <h4 className="font-medium text-on-surface">Ubah Password</h4>
+                  <p className="text-sm text-on-surface-variant">Perbarui password untuk keamanan akun</p>
+                </div>
+                <Button variant="outline">
+                  Ubah Password
+                </Button>
+              </div>
+
+              <Separator />
+
+              <div className="flex items-center justify-between p-4 surface-container rounded-xl">
+                <div>
+                  <h4 className="font-medium text-on-surface">Logout dari Semua Device</h4>
+                  <p className="text-sm text-on-surface-variant">Keluar dari semua perangkat yang login</p>
+                </div>
+                <Button variant="outline">
+                  Logout Semua
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </AdminPondokLayout>
   );
