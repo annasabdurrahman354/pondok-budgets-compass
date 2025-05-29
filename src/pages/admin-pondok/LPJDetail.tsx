@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -8,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { RevisionActions } from "@/components/admin-pondok/RevisionActions";
 import { fetchLPJDetail } from "@/services/api";
 import { formatCurrency } from "@/lib/utils";
 import { DocumentStatus } from "@/types";
@@ -80,6 +80,14 @@ const AdminPondokLPJDetailPage: React.FC = () => {
             </Button>
           )}
         </div>
+
+        {/* Revision Actions */}
+        <RevisionActions
+          documentType="lpj"
+          documentId={lpj.id}
+          status={lpj.status}
+          pesanRevisi={lpj.pesan_revisi}
+        />
 
         <Card>
           <CardHeader>
